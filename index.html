@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ultimate C Major Randomizer — Combined All Tracks Output</title>
+  <title>Ultimate C Major Randomizer — Combined Inline Output</title>
   <style>
     * { box-sizing: border-box; }
     html, body {
@@ -72,10 +72,11 @@
       border-radius: 12px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
       user-select: text;
-      overflow-y: auto;
-      white-space: pre;
-      min-height: 350px;
-      max-height: 70vh;
+      overflow-x: auto;
+      overflow-y: hidden;
+      white-space: nowrap;
+      min-height: 100px;
+      max-height: 30vh;
     }
     #noteDisplay .header {
       font-weight: 900;
@@ -87,7 +88,7 @@
       #noteDisplay {
         font-size: 12px;
         padding: 15px 15px;
-        max-height: 50vh;
+        max-height: 25vh;
       }
       button {
         font-size: 1.1em;
@@ -101,7 +102,7 @@
 </head>
 <body>
   <div id="controls">
-    <h1>Ultimate C Major Randomizer — Combined All Tracks Output</h1>
+    <h1>Ultimate C Major Randomizer — Combined Inline Output</h1>
 
     <label for="chaosRange">Beat Chaos:</label>
     <input type="range" id="chaosRange" min="0" max="2" step="1" title="0 = simple quarters, 2 = complex rhythms" value="1" />
@@ -110,7 +111,7 @@
   </div>
 
   <div id="noteDisplay" aria-live="polite" aria-atomic="false" aria-label="Combined output of tracks 1, 2 and drums">
-    <div class="header">T1  T2  Drum</div>
+    <div class="header">T1 T2 Drum</div>
     <pre id="combinedOutput"></pre>
   </div>
 
@@ -153,7 +154,7 @@
     ];
 
     // Drum names
-    const drumHitNames = ["Kick", "Snare", "ClosedHat", "OpenHat"];
+    const drumHitNames = ["Kick", "Snare", "HatC", "HatO"];
 
     // Drum synths
     const kick = new Tone.MembraneSynth({
@@ -221,16 +222,10 @@
     // Playback state and parts
     let isPlaying = false;
     let combinedPart = null;
-    let drumPart = null;
 
     function getRandomFromArray(arr) {
       return arr[Math.floor(Math.random() * arr.length)];
     }
-
-    // We want a single timeline with 32 events max
-    // For each event, generate Track1 note, Track2 note, Drum hit or none
-    // Then schedule them simultaneously and output one line per event:
-    // "T1degree  T2degree  DrumHit"
 
     function createCombinedPart(chaosLevel) {
       const events = [];
@@ -243,7 +238,7 @@
         const duration = getRandomFromArray(durationsByChaos[chaosLevel]);
         const durSeconds = notationToSeconds[duration];
 
-        // Decide drum hit randomly or blank (50% chance no drum hit)
+        // Drum hit randomly with 70% chance, else none
         const drumHitChance = Math.random();
         let drumIndex = null;
         if(drumHitChance < 0.7) {
@@ -263,11 +258,11 @@
       }
 
       const part = new Tone.Part((time, value) => {
-        // Trigger notes for track 1 and 2
+        // Play notes
         synth1.triggerAttackRelease(value.note1.note, value.duration, time);
         synth2.triggerAttackRelease(value.note2.note, value.duration, time);
 
-        // Trigger drum hit if any
+        // Play drum
         if(value.drumIndex !== null) {
           switch(value.drumIndex) {
             case 0: kick.triggerAttackRelease("C2", "8n", time); break;
@@ -277,12 +272,11 @@
           }
         }
 
-        // Output line string with aligned columns: 2 spaces between each
-        const drumText = value.drumIndex !== null ? drumHitNames[value.drumIndex] : "     ";
-        const line = `${value.note1.degree.padEnd(3)}  ${value.note2.degree.padEnd(3)}  ${drumText}\n`;
-
         Tone.Draw.schedule(() => {
-          combinedOutput.textContent += line;
+          const drumText = value.drumIndex !== null ? drumHitNames[value.drumIndex] : "     ";
+          // minimal spacing: 1 space between each part
+          const triplet = value.note1.degree + " " + value.note2.degree + drumText + " ";
+          combinedOutput.textContent += triplet;
         }, time);
       }, events);
 
@@ -296,7 +290,7 @@
       await Tone.start();
       await Tone.context.resume();
 
-      combinedOutput.textContent = "T1   T2   Drum\n";
+      combinedOutput.textContent = "";
 
       const chaosLevel = parseInt(chaosRange.value);
 
@@ -330,7 +324,6 @@
         stopPlayback();
       }
     });
-
   </script>
 </body>
 </html>
