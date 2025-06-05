@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Hardcore Punk Music Generator - Overdrive Guitar, Bass Guitar, Acoustic Drums</title>
+<title>Hardcore Punk Music Generator with Working Drums</title>
 <style>
   body {
     font-family: monospace;
@@ -41,12 +41,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
 <script>
-  // Set hardcore punk tempo ~200 bpm
   Tone.Transport.bpm.value = 200;
 
-  // Minor pentatonic scale roots common in punk
   const minorPentatonicRoots = ["A", "C", "D", "E", "G"];
-
   const noteToMidi = {A: 57, C: 60, D: 62, E: 64, G: 67};
   function midiToNoteName(midi) {
     const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -54,25 +51,22 @@
     const octave = Math.floor(midi / 12) - 1;
     return note + octave;
   }
-
   function powerChord(root) {
     const rootMidi = noteToMidi[root];
     const fifthMidi = rootMidi + 7;
     return [midiToNoteName(rootMidi), midiToNoteName(fifthMidi)];
   }
 
-  // --- Guitar: PolySynth with Overdrive Distortion for electric guitar tone
   const guitar = new Tone.PolySynth(Tone.Synth, {
     oscillator: { type: "square" },
     envelope: { attack: 0.005, decay: 0.1, sustain: 0.2, release: 0.1 }
   }).chain(
-    new Tone.Distortion(0.9),   // Heavy overdrive distortion
-    new Tone.Filter(800, "lowpass"), // Smooth filter to tame highs
+    new Tone.Distortion(0.9),
+    new Tone.Filter(800, "lowpass"),
     new Tone.Gain(0.7),
     Tone.Destination
   );
 
-  // --- Bass: MonoSynth with bass guitar tone
   const bass = new Tone.MonoSynth({
     oscillator: { type: "sawtooth" },
     filter: { type: "lowpass", frequency: 150, rolloff: -24 },
@@ -81,50 +75,45 @@
     volume: -6
   }).toDestination();
 
-  // --- Drums: Acoustic drum sampler
-  // Samples from https://tonejs.github.io/audio/drum-samples/ (acoustic kit)
+  // Updated drum samples from a reliable public URL
   const drums = new Tone.Sampler({
     urls: {
-      "C1": "kick.wav",
-      "D1": "snare.wav",
-      "E1": "hihat-open.wav",
-      "F1": "hihat-closed.wav"
+      C1: "kick.wav",
+      D1: "snare.wav",
+      E1: "hihat-open.wav",
+      F1: "hihat-closed.wav"
     },
-    baseUrl: "https://tonejs.github.io/audio/drum-samples/acoustic-kit/",
-    volume: 0
+    baseUrl: "https://tonejs.github.io/audio/drum-samples/CR78/",
+    onload: () => {
+      console.log("Drum samples loaded");
+      drumReady = true;
+    }
   }).toDestination();
 
-  // === Rhythm & phrase settings
+  let drumReady = false;
+
   const beatsPerMeasure = 4;
   const measuresPerPhrase = 4;
-  const stepsPerPhrase = beatsPerMeasure * measuresPerPhrase; // 16 quarter notes
+  const stepsPerPhrase = beatsPerMeasure * measuresPerPhrase;
 
-  // Generate drum pattern (32 eighth notes per phrase)
   function generateDrums() {
     const pattern = [];
-    const totalSteps = stepsPerPhrase * 2; // 32 steps (8th notes)
+    const totalSteps = stepsPerPhrase * 2;
 
     for (let i = 0; i < totalSteps; i++) {
       const stepInMeasure = Math.floor(i / 2) % beatsPerMeasure;
       const isOnBeat = i % 2 === 0;
 
-      // Kick on 1 and 3 beats (typical punk feel)
       let kick = isOnBeat && (stepInMeasure === 0 || stepInMeasure === 2);
-
-      // Snare on 2 and 4 beats
       let snare = isOnBeat && (stepInMeasure === 1 || stepInMeasure === 3);
-
-      // Hi-hats: closed on every 8th note, open on off-beats occasionally
       let hiHatOpen = !isOnBeat && Math.random() < 0.3;
       let hiHatClosed = !hiHatOpen;
 
       pattern.push({ kick, snare, hiHatOpen, hiHatClosed });
     }
-
     return pattern;
   }
 
-  // Guitar phrase (16 quarter notes)
   function generateGuitarPhrase() {
     const phrase = [];
     for (let i = 0; i < stepsPerPhrase; i++) {
@@ -138,7 +127,6 @@
     return phrase;
   }
 
-  // Bass phrase harmonizes guitar
   function generateBassPhrase(guitarPhrase) {
     const phrase = [];
     for (let i = 0; i < guitarPhrase.length; i++) {
@@ -149,16 +137,15 @@
         const rootMidi = noteToMidi[root];
         const choice = Math.random();
         let midiNote;
-        if (choice < 0.6) midiNote = rootMidi - 12; // octave below root
-        else if (choice < 0.8) midiNote = rootMidi - 12 + 7; // fifth below root
-        else midiNote = rootMidi - 24; // two octaves below
+        if (choice < 0.6) midiNote = rootMidi - 12;
+        else if (choice < 0.8) midiNote = rootMidi - 12 + 7;
+        else midiNote = rootMidi - 24;
         phrase.push(midiToNoteName(midiNote));
       }
     }
     return phrase;
   }
 
-  // Display area for notes
   const noteDisplay = document.getElementById("noteDisplay");
   let displayLines = { guitar: "", bass: "", drums: "" };
 
@@ -166,7 +153,6 @@
     const measureLength = beatsPerMeasure;
     const phraseMeasures = measuresPerPhrase;
 
-    // Guitar and bass
     for (let i = 0; i < guitarPhrase.length; i++) {
       if (i > 0 && i % measureLength === 0) {
         displayLines.guitar += " | ";
@@ -176,7 +162,6 @@
       displayLines.bass += bassPhrase[i] ? bassPhrase[i][0] : "-";
     }
 
-    // Drums pattern: 32 steps (8th notes)
     for (let i = 0; i < drumsPattern.length; i++) {
       if (i > 0 && i % (measureLength * 2) === 0) {
         displayLines.drums += " | ";
@@ -199,8 +184,11 @@
     noteDisplay.scrollTop = noteDisplay.scrollHeight;
   }
 
-  // Play drum sounds
   function playDrums(drumPattern, startTime) {
+    if (!drumReady) {
+      console.log("Drums not ready yet!");
+      return;
+    }
     for (let i = 0; i < drumPattern.length; i++) {
       const time = startTime + i * Tone.Time("8n").toSeconds();
       const d = drumPattern[i];
@@ -211,7 +199,6 @@
     }
   }
 
-  // Play guitar phrase
   function playGuitar(guitarPhrase, startTime) {
     for (let i = 0; i < guitarPhrase.length; i++) {
       const time = startTime + i * Tone.Time("4n").toSeconds();
@@ -220,7 +207,6 @@
     }
   }
 
-  // Play bass phrase
   function playBass(bassPhrase, startTime) {
     for (let i = 0; i < bassPhrase.length; i++) {
       const time = startTime + i * Tone.Time("4n").toSeconds();
@@ -229,7 +215,6 @@
     }
   }
 
-  // Schedule phrases on Transport
   const phraseDuration = Tone.Time("1m").toSeconds() * measuresPerPhrase;
 
   function schedulePhrase(time) {
