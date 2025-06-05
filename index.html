@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Working Hardcore Punk Generator</title>
+<title>Punk Jam with Synth Drums</title>
 <style>
-  body { background: #111; color: #eee; font-family: monospace; padding: 20px; }
+  body { background: #121212; color: #eee; font-family: monospace; padding: 20px; }
   button { font-size: 18px; padding: 10px 20px; margin: 10px; cursor: pointer; }
   #status { margin-top: 20px; white-space: pre-wrap; max-height: 300px; overflow-y: auto; background: #222; padding: 10px; }
 </style>
 </head>
 <body>
 
-<h1>Hardcore Punk Generator — With Drums & Bass Sound</h1>
+<h1>Simple Punk Jam — Synth Drums, Bass & Guitar</h1>
 <button id="startBtn">▶️ Start</button>
 <button id="stopBtn">⏹ Stop</button>
 <div id="status">Waiting to start...</div>
@@ -23,14 +23,16 @@
   const startBtn = document.getElementById("startBtn");
   const stopBtn = document.getElementById("stopBtn");
 
-  Tone.Transport.bpm.value = 210; // hardcore punk tempo
+  Tone.Transport.bpm.value = 210; // punk tempo
+  Tone.Transport.loop = true;
+  Tone.Transport.loopEnd = "1m";
 
   // Guitar synth with distortion
   const guitar = new Tone.PolySynth(Tone.Synth, {
     oscillator: { type: "square" },
     envelope: { attack: 0.005, decay: 0.1, sustain: 0.2, release: 0.1 }
   }).chain(
-    new Tone.Distortion(0.9),
+    new Tone.Distortion(0.8),
     new Tone.Filter(800, "lowpass"),
     new Tone.Gain(0.7),
     Tone.Destination
@@ -44,25 +46,30 @@
     volume: -6
   }).toDestination();
 
-  // Drum Sampler - Using reliable samples from ToneJS's public repo
-  const drumSampler = new Tone.Sampler({
-    urls: {
-      C1: "kick.wav",
-      D1: "snare.wav",
-      E1: "hihat-open.wav",
-      F1: "hihat-closed.wav"
+  // Synth Kick - simple sine wave with short envelope
+  const kick = new Tone.MembraneSynth({
+    pitchDecay: 0.05,
+    octaves: 10,
+    envelope: {
+      attack: 0.001,
+      decay: 0.2,
+      sustain: 0,
+      release: 0.1
     },
-    baseUrl: "https://tonejs.github.io/audio/drum-samples/CR78/",
-    onload: () => {
-      status.textContent += "\nDrum samples loaded.";
-      drumsReady = true;
-    }
+    volume: -8
   }).toDestination();
 
-  let drumsReady = false;
-  let isPlaying = false;
+  // Synth Snare - noise burst + bandpass filter
+  const snareNoise = new Tone.NoiseSynth({
+    noise: { type: "white" },
+    envelope: { attack: 0.001, decay: 0.15, sustain: 0 },
+    volume: -12
+  });
 
-  // Notes for guitar power chords (root + fifth)
+  const snareFilter = new Tone.Filter(1500, "bandpass").toDestination();
+  snareNoise.connect(snareFilter);
+
+  // Basic punk chord roots and power chords
   const powerChords = {
     A: ["A3", "E4"],
     C: ["C4", "G4"],
@@ -71,55 +78,41 @@
     G: ["G3", "D4"]
   };
 
-  // Simple phrases - randomly select chords & bass notes
   function randomChord() {
     const keys = Object.keys(powerChords);
     return keys[Math.floor(Math.random() * keys.length)];
   }
 
+  // Play a 4-chord riff per measure, bass plays root note
   function playPhrase(time) {
-    // Play 4 chords, one per quarter note
     for (let i = 0; i < 4; i++) {
       const chordRoot = randomChord();
       const chordNotes = powerChords[chordRoot];
       const chordTime = time + i * Tone.Time("4n").toSeconds();
 
       guitar.triggerAttackRelease(chordNotes, "8n", chordTime);
-
-      // Bass plays root note an octave below
-      const bassNote = chordRoot + "2";
-      bass.triggerAttackRelease(bassNote, "8n", chordTime);
+      bass.triggerAttackRelease(chordRoot + "2", "8n", chordTime);
     }
 
-    // Drum pattern: kick on 1 & 3, snare on 2 & 4, hi-hat 8th notes
-    for (let i = 0; i < 8; i++) {
-      const stepTime = time + i * Tone.Time("8n").toSeconds();
+    // Drums:
+    // Kick on beats 1 & 3
+    kick.triggerAttackRelease("C2", "8n", time);
+    kick.triggerAttackRelease("C2", "8n", time + Tone.Time("2n").toSeconds());
 
-      if (i % 4 === 0 || i % 4 === 2) {
-        drumSampler.triggerAttackRelease("C1", "16n", stepTime); // kick on 1 & 3
-      }
-
-      if (i % 4 === 1 || i % 4 === 3) {
-        drumSampler.triggerAttackRelease("D1", "16n", stepTime); // snare on 2 & 4
-      }
-
-      // hi-hat closed every 8th note
-      drumSampler.triggerAttackRelease("F1", "16n", stepTime);
-    }
+    // Snare on beats 2 & 4
+    snareNoise.triggerAttackRelease("16n", time + Tone.Time("4n").toSeconds());
+    snareNoise.triggerAttackRelease("16n", time + Tone.Time("4n * 3").toSeconds());
   }
 
-  // Schedule phrases every measure indefinitely
   function scheduleLoop() {
     Tone.Transport.scheduleRepeat((time) => {
-      if (!drumsReady) {
-        status.textContent += "\nWaiting for drum samples to load...";
-        return;
-      }
       playPhrase(time);
-      status.textContent += "\nPlaying phrase at " + time.toFixed(2) + " seconds";
+      status.textContent += `\nPlaying phrase at ${time.toFixed(2)}s`;
       status.scrollTop = status.scrollHeight;
     }, "1m");
   }
+
+  let isPlaying = false;
 
   startBtn.onclick = async () => {
     if (isPlaying) return;
@@ -127,10 +120,6 @@
     status.textContent = "Starting audio context...";
     await Tone.start();
     status.textContent += "\nAudio context started.";
-    if (!drumsReady) {
-      status.textContent += "\nLoading drum samples...";
-    }
-    Tone.Transport.bpm.value = 210;
     Tone.Transport.start();
     scheduleLoop();
   };
