@@ -14,63 +14,58 @@
     h1 {
       margin-bottom: 20px;
     }
-    select, button {
+    button {
       margin: 10px;
       padding: 10px;
       font-size: 16px;
     }
-    #noteList {
+    #noteDisplay {
       min-height: 100px;
       border: 1px solid #ccc;
       margin: 20px auto;
       width: 200px;
       background: white;
       padding: 10px;
+      font-size: 24px;
+      line-height: 1.5;
     }
   </style>
 </head>
 <body>
-  <h1>MIDI Vibe Box</h1>
+  <h1>🎵 Music Randomizer</h1>
 
-  <label for="noteSelect">Choose Note:</label>
-  <select id="noteSelect">
-    <option value="C4">C4</option>
-    <option value="D4">D4</option>
-    <option value="E4">E4</option>
-    <option value="F4">F4</option>
-    <option value="G4">G4</option>
-    <option value="A4">A4</option>
-    <option value="B4">B4</option>
-  </select>
-  <button onclick="addNote()">Add Note</button>
+  <div id="noteDisplay">Jianpu: </div>
 
-  <div id="noteList"></div>
-
-  <button onclick="startPlayback()">Start</button>
-  <button onclick="stopPlayback()">Stop</button>
-  <button onclick="exportMIDI()">Export MIDI</button>
+  <button onclick="startPlayback()">▶ Start</button>
+  <button onclick="stopPlayback()">⏹ Stop</button>
+  <button onclick="exportMIDI()">💾 Export MIDI</button>
 
   <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/midiwriter-js@2.1.0/dist/MidiWriter.min.js"></script>
   <script>
-    const selectedNotes = [];
-    const noteListDiv = document.getElementById('noteList');
-    let synth = new Tone.Synth().toDestination();
-    let loopId = null;
+    // Two octaves of C major
+    const selectedNotes = [
+      "C4", "D4", "E4", "F4", "G4", "A4", "B4",
+      "C5", "D5", "E5", "F5", "G5", "A5", "B5"
+    ];
 
-    function addNote() {
-      const note = document.getElementById('noteSelect').value;
-      selectedNotes.push(note);
-      noteListDiv.innerHTML += `<div>${note}</div>`;
-    }
+    const jianpuMap = {
+      "C4": "1", "D4": "2", "E4": "3", "F4": "4", "G4": "5", "A4": "6", "B4": "7",
+      "C5": "1'", "D5": "2'", "E5": "3'", "F5": "4'", "G5": "5'", "A5": "6'", "B5": "7'"
+    };
+
+    const noteDisplay = document.getElementById('noteDisplay');
+    let synth = new Tone.Synth().toDestination();
 
     function playRandomNote(time) {
       if (selectedNotes.length === 0) return;
       const note = selectedNotes[Math.floor(Math.random() * selectedNotes.length)];
       synth.triggerAttackRelease(note, "8n", time);
+      noteDisplay.innerHTML += `${jianpuMap[note]} `;
     }
 
     function startPlayback() {
+      noteDisplay.innerHTML = "Jianpu: ";
       Tone.Transport.stop();
       Tone.Transport.cancel();
       Tone.Transport.scheduleRepeat(playRandomNote, "8n");
@@ -83,8 +78,6 @@
     }
 
     function exportMIDI() {
-      if (selectedNotes.length === 0) return;
-
       const track = new MidiWriter.Track();
       const pitches = Array.from({length: 32}, () => selectedNotes[Math.floor(Math.random() * selectedNotes.length)]);
       pitches.forEach(note => {
