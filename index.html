@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ultimate Music Randomizer - Two Tracks C Major</title>
   <style>
-    /* Reset & base */
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
     html, body {
       margin: 0; padding: 0;
       height: 100%;
@@ -93,7 +90,6 @@
       margin-right: 18px;
       user-select: text;
     }
-    /* Responsive */
     @media (max-width: 480px) {
       #noteDisplay {
         font-size: 32px;
@@ -132,7 +128,6 @@
   <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
 
   <script>
-    // Notes for 2 octaves C major scale with Jianpu degrees
     const cMajorNotes = [
       { note: "C4", degree: "1" },
       { note: "D4", degree: "2" },
@@ -150,13 +145,12 @@
       { note: "B5", degree: "7" },
     ];
 
-    // Elements
     const chaosRange = document.getElementById("chaosRange");
     const playPauseBtn = document.getElementById("playPauseBtn");
     const track1Notes = document.getElementById("track1Notes");
     const track2Notes = document.getElementById("track2Notes");
 
-    // Two distinct synths for rich texture
+    // Synths
     const synth1 = new Tone.Synth({
       oscillator: { type: "sine" },
       envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
@@ -164,75 +158,119 @@
 
     const synth2 = new Tone.PluckSynth().toDestination();
 
-    let running = false;
+    // Duration options for chaos levels
+    const durationsByChaos = {
+      0: ["4n"],
+      1: ["4n", "8n", "16n"],
+      2: ["4n", "8n", "16n", "8t", "4t", "4n.", "16t"]
+    };
 
-    // Choose random duration based on chaos level
-    function getRandomDuration(chaosLevel) {
-      if (chaosLevel === 0) return "4n"; // quarter only
-      if (chaosLevel === 1) return ["4n", "8n", "16n"][Math.floor(Math.random() * 3)];
-      // full complex rhythm including triplets and dotted notes
-      return ["4n", "8n", "16n", "8t", "4t", "4n.", "16t"][Math.floor(Math.random() * 7)];
+    // Convert notation duration to seconds at 120 BPM
+    // quarter note = 0.5 seconds
+    const notationToSeconds = {
+      "4n": 0.5,
+      "8n": 0.25,
+      "16n": 0.125,
+      "8t": 0.1667,
+      "4t": 0.3333,
+      "4n.": 0.75,
+      "16t": 0.0833
+    };
+
+    let isPlaying = false;
+    let part1 = null;
+    let part2 = null;
+
+    function getRandomFromArray(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
     }
 
-    // Convert notation to ms duration (assumes 120 BPM = 500 ms quarter note)
-    function getDurationMs(notation) {
-      const quarter = 500;
-      switch (notation) {
-        case "4n": return quarter;
-        case "4t": return (quarter * 2) / 3;
-        case "4n.": return quarter * 1.5;
-        case "8n": return quarter / 2;
-        case "8t": return quarter / 3;
-        case "16n": return quarter / 4;
-        case "16t": return quarter / 6;
-        default: return quarter;
+    // Generate a continuous random sequence for a track using Tone.Part and Tone.Transport loop
+    function createRandomPart(synth, noteDisplaySpan, chaosLevel) {
+      // We'll create events spaced in time up to 8 seconds ahead.
+      // This function schedules notes with random note, duration, and intervals
+      // We'll generate many events at once, then repeat continuously.
+
+      const events = [];
+      let time = 0;
+
+      // Let's make about 32 notes ahead
+      for(let i = 0; i < 32; i++) {
+        const noteObj = getRandomFromArray(cMajorNotes);
+        const duration = getRandomFromArray(durationsByChaos[chaosLevel]);
+        const durSeconds = notationToSeconds[duration];
+
+        events.push({
+          time: time,
+          note: noteObj.note,
+          degree: noteObj.degree,
+          duration: duration,
+          durSeconds: durSeconds,
+        });
+
+        // Next note starts right after this duration (no rests)
+        time += durSeconds;
       }
+
+      // Create Tone.Part with the events
+      const part = new Tone.Part(((time, value) => {
+        synth.triggerAttackRelease(value.note, value.duration, time);
+
+        // Update Jianpu display in real time
+        // Using Tone.Draw.schedule to sync UI with audio scheduling
+        Tone.Draw.schedule(() => {
+          // Append note
+          noteDisplaySpan.innerHTML += `<span class="note" aria-label="${value.degree}">${value.degree}</span>`;
+          // Scroll down automatically
+          noteDisplaySpan.parentElement.scrollTop = noteDisplaySpan.parentElement.scrollHeight;
+        }, time);
+      }), events).start(0);
+
+      // Loop the part by resetting its start time after total duration
+      part.loop = true;
+      part.loopEnd = time;
+
+      return part;
     }
 
-    // Play single track loop asynchronously
-    async function playTrack(synth, noteSpan, trackLabel) {
-      while (running) {
-        const chaosLevel = parseInt(chaosRange.value);
-        const { note, degree } = cMajorNotes[Math.floor(Math.random() * cMajorNotes.length)];
-        const dur = getRandomDuration(chaosLevel);
-        const durMs = getDurationMs(dur);
-
-        synth.triggerAttackRelease(note, dur);
-
-        // Append the Jianpu note with spacing
-        noteSpan.innerHTML += `<span class="note" aria-label="${degree}">${degree}</span>`;
-
-        // Auto scroll down for overflowing content
-        noteSpan.parentElement.scrollTop = noteSpan.parentElement.scrollHeight;
-
-        // Wait for the duration of the note before continuing loop
-        await new Promise(resolve => setTimeout(resolve, durMs));
-      }
-    }
-
-    let playPromises = [];
-
-    // Play/Pause button toggle
-    playPauseBtn.addEventListener("click", async () => {
+    async function startPlayback() {
       await Tone.start();
       await Tone.context.resume();
 
-      if (!running) {
-        running = true;
-        playPauseBtn.textContent = "⏸️ Pause";
+      // Clear previous notes display
+      track1Notes.innerHTML = "";
+      track2Notes.innerHTML = "";
 
-        // Clear notes output on new play
-        track1Notes.innerHTML = "";
-        track2Notes.innerHTML = "";
+      // Create parts with current chaos level
+      const chaosLevel = parseInt(chaosRange.value);
 
-        // Start both tracks concurrently
-        playPromises = [
-          playTrack(synth1, track1Notes, "Track 1"),
-          playTrack(synth2, track2Notes, "Track 2"),
-        ];
+      part1 = createRandomPart(synth1, track1Notes, chaosLevel);
+      part2 = createRandomPart(synth2, track2Notes, chaosLevel);
+
+      Tone.Transport.start();
+      isPlaying = true;
+      playPauseBtn.textContent = "⏸️ Pause";
+    }
+
+    function stopPlayback() {
+      Tone.Transport.stop();
+      if(part1) {
+        part1.dispose();
+        part1 = null;
+      }
+      if(part2) {
+        part2.dispose();
+        part2 = null;
+      }
+      isPlaying = false;
+      playPauseBtn.textContent = "▶️ Play";
+    }
+
+    playPauseBtn.addEventListener("click", () => {
+      if (!isPlaying) {
+        startPlayback();
       } else {
-        running = false;
-        playPauseBtn.textContent = "▶️ Play";
+        stopPlayback();
       }
     });
   </script>
