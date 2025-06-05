@@ -1,51 +1,49 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Hardcore Punk Generator</title>
-  <style>
-    body {
-      font-family: monospace;
-      text-align: center;
-      background: black;
-      color: lime;
-      padding: 20px;
-    }
-    h1 { margin-bottom: 10px; }
-    #noteDisplay {
-      height: 200px;
-      width: 95%;
-      border: 1px solid lime;
-      background: #111;
-      padding: 10px;
-      font-size: 12px;
-      overflow-y: scroll;
-      white-space: pre-wrap;
-      text-align: left;
-      margin: 0 auto 20px auto;
-      max-width: 600px;
-    }
-    button {
-      margin: 10px;
-      padding: 10px 20px;
-      font-size: 16px;
-      background: lime;
-      color: black;
-      border: none;
-      cursor: pointer;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hardcore Punk Generator Debug</title>
+<style>
+  body {
+    font-family: monospace;
+    text-align: center;
+    background: black;
+    color: lime;
+    padding: 20px;
+  }
+  button {
+    margin: 10px;
+    padding: 10px 20px;
+    font-size: 16px;
+    background: lime;
+    color: black;
+    border: none;
+    cursor: pointer;
+  }
+  #noteDisplay {
+    margin-top: 20px;
+    white-space: pre-wrap;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    border: 1px solid lime;
+    padding: 10px;
+    background: #111;
+    height: 200px;
+    overflow-y: auto;
+  }
+</style>
 </head>
 <body>
-  <h1>⚡ HARDCORE PUNK GENERATOR ⚡</h1>
+  <h1>⚡ Hardcore Punk Generator Debug ⚡</h1>
   <button id="startBtn">▶️ Start</button>
   <button id="stopBtn">⏸️ Pause</button>
-  <div id="noteDisplay"></div>
+  <div id="noteDisplay">Waiting to start...</div>
 
   <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
   <script>
-    // Power chords defined as pairs of notes (root + perfect fifth)
+    // Power chords (root + perfect fifth)
     const powerChords = {
       "C": ["C4", "G4"],
       "D": ["D4", "A4"],
@@ -57,9 +55,9 @@
     };
     const roots = Object.keys(powerChords);
     const durations = ["16n", "8n"];
-    const getDurationMs = dur => (dur === "16n" ? 125 : 250);
+    const getDurationMs = dur => dur === "16n" ? 125 : 250;
 
-    // PolySynth for guitar (can play chords)
+    // Guitar poly synth with distortion for power chords
     const guitar = new Tone.PolySynth(Tone.MonoSynth, {
       oscillator: { type: "square" },
       envelope: { attack: 0.005, decay: 0.2, sustain: 0.1, release: 0.2 }
@@ -72,7 +70,7 @@
       envelope: { attack: 0.01, decay: 0.3, sustain: 0.2, release: 0.3 }
     }).toDestination();
 
-    // Drums sampler
+    // Drum sampler (CR78 samples)
     const drums = new Tone.Sampler({
       urls: {
         "C1": "kick.mp3",
@@ -81,61 +79,66 @@
       },
       baseUrl: "https://tonejs.github.io/audio/drum-samples/CR78/",
       onload: () => console.log("Drums loaded"),
-      onerror: (e) => console.error("Drum load error", e)
+      onerror: e => console.error("Drum load error", e)
     }).toDestination();
 
-    // Display
-    let lineGuitar = [], lineBass = [], lineDrums = [];
-    const noteDisplay = document.getElementById("noteDisplay");
-    const pad = (str, len = 5) => str.padEnd(len, " ");
-
     let running = false;
+    let lineGuitar = [];
+    let lineBass = [];
+    let lineDrums = [];
+    const noteDisplay = document.getElementById("noteDisplay");
+
+    function pad(str, len = 5) {
+      return str.padEnd(len, " ");
+    }
 
     async function punkLoop() {
-      await Tone.start();
       running = true;
 
       while (running) {
         const now = Tone.now();
 
-        // Random root and duration
         const root = roots[Math.floor(Math.random() * roots.length)];
         const chord = powerChords[root];
         const duration = durations[Math.floor(Math.random() * durations.length)];
 
-        // Play guitar chord (both notes at once)
+        // Play chord on guitar (poly synth)
         guitar.triggerAttackRelease(chord, duration, now);
 
-        // Play bass root note one octave lower (e.g. C2)
-        const bassNote = root + "2";
-        bass.triggerAttackRelease(bassNote, duration, now);
+        // Play bass one octave lower (root + "2")
+        bass.triggerAttackRelease(root + "2", duration, now);
 
-        // Drum pattern (kick, hat, snare) with fast offsets
-        drums.triggerAttackRelease("C1", "16n", now);          // kick
-        drums.triggerAttackRelease("E1", "16n", now + 0.05);   // hi-hat
-        drums.triggerAttackRelease("D1", "16n", now + 0.1);    // snare
+        // Drum pattern (kick, hihat, snare)
+        drums.triggerAttackRelease("C1", "16n", now);
+        drums.triggerAttackRelease("E1", "16n", now + 0.05);
+        drums.triggerAttackRelease("D1", "16n", now + 0.1);
 
-        // Update display
+        // Update text display
         lineGuitar.push(pad(root + "5"));
         lineBass.push(pad(root + "2"));
         lineDrums.push(pad("K-H-S"));
 
-        noteDisplay.textContent = 
-          `🎸 GUITAR:\n${lineGuitar.join("")}\n\n🎸 BASS:\n${lineBass.join("")}\n\n🥁 DRUMS:\n${lineDrums.join("")}`;
+        noteDisplay.textContent =
+          `🎸 GUITAR:\n${lineGuitar.join("")}\n\n🎸 BASS:\n${lineBass.join("")}\n\n🥁 DRUMS:\n${lineDrums.join("")}\n\nAudioContext state: ${Tone.context.state}`;
 
         await new Promise(r => setTimeout(r, getDurationMs(duration)));
       }
     }
 
-    document.getElementById("startBtn").onclick = async () => {
+    document.getElementById("startBtn").addEventListener("click", async () => {
+      if (Tone.context.state !== "running") {
+        await Tone.start();
+        console.log("Audio context started");
+      }
       if (!running) {
-        await Tone.start();  // Unlock audio context
         punkLoop();
       }
-    };
-    document.getElementById("stopBtn").onclick = () => {
+    });
+
+    document.getElementById("stopBtn").addEventListener("click", () => {
       running = false;
-    };
+      noteDisplay.textContent += "\n\nStopped.";
+    });
   </script>
 </body>
 </html>
