@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Music Randomizer</title>
   <style>
     body {
@@ -23,8 +23,12 @@
       padding: 10px;
       font-size: 24px;
       line-height: 1.5;
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
-    select, input[type=range], button {
+    select,
+    input[type=range],
+    button {
       margin: 10px;
       padding: 5px;
     }
@@ -43,7 +47,7 @@
   </select>
 
   <label for="chaosRange">Beat Chaos:</label>
-  <input type="range" id="chaosRange" min="0" max="2" step="1">
+  <input type="range" id="chaosRange" min="0" max="2" step="1" />
 
   <button id="startBtn">▶️ Start</button>
 
@@ -56,7 +60,7 @@
       minor: [0, 2, 3, 5, 7, 8, 10],
       majPent: [0, 2, 4, 7, 9],
       minPent: [0, 3, 5, 7, 10],
-      chromatic: Array.from({ length: 12 }, (_, i) => i)
+      chromatic: Array.from({ length: 12 }, (_, i) => i),
     };
 
     const jianpuMap = ["1", "2", "3", "4", "5", "6", "7"];
@@ -74,35 +78,43 @@
 
     const getRandomDuration = (chaosLevel) => {
       if (chaosLevel === 0) return "4n";
-      if (chaosLevel === 1) return ["4n", "8n", "16n"][Math.floor(Math.random() * 3)];
+      if (chaosLevel === 1)
+        return ["4n", "8n", "16n"][Math.floor(Math.random() * 3)];
       return ["4n", "8n", "16n", "8t", "4t", "4n.", "16t"][Math.floor(Math.random() * 7)];
     };
 
     const getDurationMs = (notation) => {
       const quarter = 500;
       switch (notation) {
-        case "4n": return quarter;
-        case "4t": return quarter * 2 / 3;
-        case "4n.": return quarter * 1.5;
-        case "8n": return quarter / 2;
-        case "8t": return quarter / 3;
-        case "16n": return quarter / 4;
-        case "16t": return quarter / 6;
-        default: return quarter;
+        case "4n":
+          return quarter;
+        case "4t":
+          return (quarter * 2) / 3;
+        case "4n.":
+          return quarter * 1.5;
+        case "8n":
+          return quarter / 2;
+        case "8t":
+          return quarter / 3;
+        case "16n":
+          return quarter / 4;
+        case "16t":
+          return quarter / 6;
+        default:
+          return quarter;
       }
     };
 
-    const noteDisplay = document.getElementById('noteDisplay');
-    const scaleSelect = document.getElementById('scaleSelect');
-    const chaosRange = document.getElementById('chaosRange');
-    const startBtn = document.getElementById('startBtn');
+    const noteDisplay = document.getElementById("noteDisplay");
+    const scaleSelect = document.getElementById("scaleSelect");
+    const chaosRange = document.getElementById("chaosRange");
+    const startBtn = document.getElementById("startBtn");
 
     let synth = new Tone.Synth().toDestination();
     let currentNotes = getScaleNotes();
     let running = false;
 
     async function playLoop() {
-      await Tone.start();
       running = true;
       while (running) {
         const chaosLevel = parseInt(chaosRange.value);
@@ -110,19 +122,24 @@
         const dur = getRandomDuration(chaosLevel);
         const durMs = getDurationMs(dur);
         const midi = Tone.Frequency(note).toMidi() % 12;
+        // Map midi to Jianpu scale degree relative to C major notes
+        // Jianpu uses 1-7, so mod 7 works here as a rough map
         const jianpu = jianpuMap[midi % 7] || "?";
         synth.triggerAttackRelease(note, dur);
         noteDisplay.innerHTML += `${jianpu} `;
-        await new Promise(r => setTimeout(r, durMs));
+        // Keep display scroll visible
+        noteDisplay.scrollTop = noteDisplay.scrollHeight;
+        await new Promise((r) => setTimeout(r, durMs));
       }
     }
 
-    scaleSelect.addEventListener('change', () => {
-      const selected = scaleSelect.value;
-      currentNotes = getScaleNotes("C4", scalePatterns[selected]);
+    scaleSelect.addEventListener("change", () => {
+      currentNotes = getScaleNotes("C4", scalePatterns[scaleSelect.value]);
     });
 
-    startBtn.addEventListener('click', () => {
+    startBtn.addEventListener("click", async () => {
+      await Tone.start();
+      await Tone.context.resume(); // ensure context is running
       currentNotes = getScaleNotes("C4", scalePatterns[scaleSelect.value]);
       if (!running) playLoop();
     });
