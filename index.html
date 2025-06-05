@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" >
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Music Randomizer</title>
+  <title>Fixed C Major Randomizer</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -25,26 +25,17 @@
       line-height: 1.5;
       white-space: pre-wrap;
       word-wrap: break-word;
+      overflow-y: auto;
+      max-height: 150px;
     }
-    select,
-    input[type=range],
-    button {
+    input[type=range], button {
       margin: 10px;
       padding: 5px;
     }
   </style>
 </head>
 <body>
-  <h1>🎵 Music Randomizer</h1>
-
-  <label for="scaleSelect">Scale:</label>
-  <select id="scaleSelect">
-    <option value="major">Major</option>
-    <option value="minor">Minor</option>
-    <option value="majPent">Major Pentatonic</option>
-    <option value="minPent">Minor Pentatonic</option>
-    <option value="chromatic">Chromatic</option>
-  </select>
+  <h1>🎵 C Major Randomizer</h1>
 
   <label for="chaosRange">Beat Chaos:</label>
   <input type="range" id="chaosRange" min="0" max="2" step="1" />
@@ -55,92 +46,73 @@
 
   <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
   <script>
-    const scalePatterns = {
-      major: [0, 2, 4, 5, 7, 9, 11],
-      minor: [0, 2, 3, 5, 7, 8, 10],
-      majPent: [0, 2, 4, 7, 9],
-      minPent: [0, 3, 5, 7, 10],
-      chromatic: Array.from({ length: 12 }, (_, i) => i),
-    };
+    // Fixed C major scale 2 octaves, from C4 to B5
+    // Notes with exact Jianpu degrees (1 to 7)
+    // Map C=1, D=2, E=3, F=4, G=5, A=6, B=7
+    const cMajorNotes = [
+      { note: "C4", degree: "1" },
+      { note: "D4", degree: "2" },
+      { note: "E4", degree: "3" },
+      { note: "F4", degree: "4" },
+      { note: "G4", degree: "5" },
+      { note: "A4", degree: "6" },
+      { note: "B4", degree: "7" },
+      { note: "C5", degree: "1" },
+      { note: "D5", degree: "2" },
+      { note: "E5", degree: "3" },
+      { note: "F5", degree: "4" },
+      { note: "G5", degree: "5" },
+      { note: "A5", degree: "6" },
+      { note: "B5", degree: "7" },
+    ];
 
-    const jianpuMap = ["1", "2", "3", "4", "5", "6", "7"];
-
-    const getScaleNotes = (base = "C4", pattern = scalePatterns.major) => {
-      const baseMidi = Tone.Frequency(base).toMidi();
-      const notes = [];
-      for (let octave = 0; octave < 2; octave++) {
-        for (let interval of pattern) {
-          notes.push(Tone.Frequency(baseMidi + interval + octave * 12, "midi").toNote());
-        }
-      }
-      return notes;
-    };
-
-    const getRandomDuration = (chaosLevel) => {
-      if (chaosLevel === 0) return "4n";
-      if (chaosLevel === 1)
-        return ["4n", "8n", "16n"][Math.floor(Math.random() * 3)];
-      return ["4n", "8n", "16n", "8t", "4t", "4n.", "16t"][Math.floor(Math.random() * 7)];
-    };
-
-    const getDurationMs = (notation) => {
-      const quarter = 500;
-      switch (notation) {
-        case "4n":
-          return quarter;
-        case "4t":
-          return (quarter * 2) / 3;
-        case "4n.":
-          return quarter * 1.5;
-        case "8n":
-          return quarter / 2;
-        case "8t":
-          return quarter / 3;
-        case "16n":
-          return quarter / 4;
-        case "16t":
-          return quarter / 6;
-        default:
-          return quarter;
-      }
-    };
-
-    const noteDisplay = document.getElementById("noteDisplay");
-    const scaleSelect = document.getElementById("scaleSelect");
     const chaosRange = document.getElementById("chaosRange");
     const startBtn = document.getElementById("startBtn");
+    const noteDisplay = document.getElementById("noteDisplay");
 
     let synth = new Tone.Synth().toDestination();
-    let currentNotes = getScaleNotes();
     let running = false;
+
+    function getRandomDuration(chaosLevel) {
+      if (chaosLevel === 0) return "4n"; // quarter notes only
+      if (chaosLevel === 1) return ["4n", "8n", "16n"][Math.floor(Math.random() * 3)];
+      // chaosLevel 2: includes triplets & dotted notes
+      return ["4n", "8n", "16n", "8t", "4t", "4n.", "16t"][Math.floor(Math.random() * 7)];
+    }
+
+    function getDurationMs(notation) {
+      const quarter = 500; // 120 bpm = 500ms quarter note
+      switch (notation) {
+        case "4n": return quarter;
+        case "4t": return (quarter * 2) / 3;
+        case "4n.": return quarter * 1.5;
+        case "8n": return quarter / 2;
+        case "8t": return quarter / 3;
+        case "16n": return quarter / 4;
+        case "16t": return quarter / 6;
+        default: return quarter;
+      }
+    }
 
     async function playLoop() {
       running = true;
+      noteDisplay.innerHTML = "Jianpu: ";
       while (running) {
         const chaosLevel = parseInt(chaosRange.value);
-        const note = currentNotes[Math.floor(Math.random() * currentNotes.length)];
+        const { note, degree } = cMajorNotes[Math.floor(Math.random() * cMajorNotes.length)];
         const dur = getRandomDuration(chaosLevel);
         const durMs = getDurationMs(dur);
-        const midi = Tone.Frequency(note).toMidi() % 12;
-        // Map midi to Jianpu scale degree relative to C major notes
-        // Jianpu uses 1-7, so mod 7 works here as a rough map
-        const jianpu = jianpuMap[midi % 7] || "?";
+
         synth.triggerAttackRelease(note, dur);
-        noteDisplay.innerHTML += `${jianpu} `;
-        // Keep display scroll visible
+        noteDisplay.innerHTML += degree + " ";
         noteDisplay.scrollTop = noteDisplay.scrollHeight;
         await new Promise((r) => setTimeout(r, durMs));
       }
     }
 
-    scaleSelect.addEventListener("change", () => {
-      currentNotes = getScaleNotes("C4", scalePatterns[scaleSelect.value]);
-    });
-
     startBtn.addEventListener("click", async () => {
       await Tone.start();
-      await Tone.context.resume(); // ensure context is running
-      currentNotes = getScaleNotes("C4", scalePatterns[scaleSelect.value]);
+      await Tone.context.resume();
       if (!running) playLoop();
     });
   </script>
