@@ -43,40 +43,26 @@
 <script>
   Tone.Transport.bpm.value = 180; // Hardcore punk tempo
 
-  // === Power chords in A minor pentatonic scale (common hardcore punk) ===
-  // We'll define roots in A minor pentatonic: A, C, D, E, G
-  // Power chords are root + fifth above
-  
   const minorPentatonicRoots = ["A", "C", "D", "E", "G"];
-
-  // Map notes to MIDI or Tone.js notation for power chords (root + fifth)
-  // Fifth is 7 semitones above root (perfect fifth)
-  // We'll keep chords in octave 4 (guitar range)
   const noteToMidi = {A: 57, C: 60, D: 62, E: 64, G: 67};
   function midiToNoteName(midi) {
-    // convert midi number to note name in octave
     const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const note = notes[midi % 12];
     const octave = Math.floor(midi / 12) - 1;
     return note + octave;
   }
-  
-  // Generate power chord notes from root
   function powerChord(root) {
     let rootMidi = noteToMidi[root];
     let fifthMidi = rootMidi + 7;
     return [midiToNoteName(rootMidi), midiToNoteName(fifthMidi)];
   }
 
-  // === Synth setup ===
-  // Distorted mono synth for guitar (simulate overdrive)
   const guitar = new Tone.PolySynth(Tone.MonoSynth, {
     oscillator: { type: "square" },
     envelope: { attack: 0.005, decay: 0.1, sustain: 0.2, release: 0.1 },
     filterEnvelope: { attack: 0.001, decay: 0.05, sustain: 0.3, release: 0.05 }
   }).chain(new Tone.Distortion(0.8), new Tone.Gain(0.7), Tone.Destination);
 
-  // Bass synth: loud bass with sawtooth and lowpass filter
   const bass = new Tone.MonoSynth({
     oscillator: { type: "sawtooth" },
     filter: { type: "lowpass", frequency: 150 },
@@ -84,7 +70,6 @@
     volume: -8
   }).toDestination();
 
-  // Drum samplers for track 1 (kick and snare)
   const drumsTrack1 = new Tone.Sampler({
     urls: {
       "C1": "kick.wav",
@@ -93,7 +78,6 @@
     baseUrl: "https://tonejs.github.io/audio/drum-samples/CR78/"
   }).toDestination();
 
-  // Drum samplers for track 2 (open and closed hi-hat)
   const drumsTrack2 = new Tone.Sampler({
     urls: {
       "E1": "openhat.wav",
@@ -102,58 +86,35 @@
     baseUrl: "https://tonejs.github.io/audio/drum-samples/CR78/"
   }).toDestination();
 
-  // === Hardcore punk rhythmic drum pattern generator ===
-  // 4/4 measures, 16 steps per phrase (quarter notes)
-  // Kick on all beats (four-on-the-floor)
-  // Snare on 2 & 4
-  // Hi-hats steady 8th notes (closed on beats, open on off-beats)
-  // Occasionally add d-beat syncopation (extra kicks before snares)
-
   const beatsPerMeasure = 4;
   const measuresPerPhrase = 4;
   const stepsPerPhrase = beatsPerMeasure * measuresPerPhrase; // 16 quarter notes
 
-  // Generates drum steps for a phrase
   function generateDrums() {
     const drumPattern = [];
-    // We'll create 32 steps here for 8th notes (to handle hi-hats properly)
-    // but guitar and bass play on quarter notes (every other 8th)
     const totalSteps = stepsPerPhrase * 2; // 32 eighth notes
 
     for (let i = 0; i < totalSteps; i++) {
-      const stepInMeasure = (i / 2) % beatsPerMeasure; // quarter note index (0 to 3)
-      const isOnBeat = i % 2 === 0; // true if quarter note, false if off-beat
+      const stepInMeasure = (i / 2) % beatsPerMeasure;
+      const isOnBeat = i % 2 === 0;
 
-      // Kick (four on floor = all quarter beats) + occasional d-beat kicks on off-beats before snares
-      let kick = isOnBeat; // kick on every quarter
-      // 25% chance to add d-beat off-beat kick (right before snare beats)
+      let kick = isOnBeat;
       if (!isOnBeat && Math.random() < 0.25) {
-        // Only add if next quarter is snare beat (2 or 4)
         const nextQuarter = (stepInMeasure + 1) % beatsPerMeasure;
         if (nextQuarter === 1 || nextQuarter === 3) {
           kick = true;
         }
       }
 
-      // Snare on beats 2 and 4 (quarter notes)
       const snare = isOnBeat && (stepInMeasure === 1 || stepInMeasure === 3);
-
-      // Hi-hat closed on every 8th (all steps)
-      // Open hi-hat on off-beats (every odd index)
-      const hiHatOpen = !isOnBeat && Math.random() < 0.3; // 30% chance open on off-beats
+      const hiHatOpen = !isOnBeat && Math.random() < 0.3;
       const hiHatClosed = !hiHatOpen;
 
       drumPattern.push({ kick, snare, hiHatOpen, hiHatClosed });
     }
-
     return drumPattern;
   }
 
-  // === Guitar phrase generator ===
-  // Select random roots from minor pentatonic scale
-  // Power chords only
-  // 16 quarter note steps per phrase
-  // 80% chance to play chord each step, else rest
   function generateGuitarPhrase() {
     const phrase = [];
     for (let i = 0; i < stepsPerPhrase; i++) {
@@ -167,12 +128,6 @@
     return phrase;
   }
 
-  // === Bass phrase generator ===
-  // Harmonize with guitar:
-  // Root note, or add octave (root + 12 semitones), or add fifth (root + 7 semitones)
-  // Choose randomly among these options
-  // If guitar is rest, bass is rest
-
   function generateBassPhrase(guitarPhrase) {
     const phrase = [];
     for (let i = 0; i < guitarPhrase.length; i++) {
@@ -181,36 +136,21 @@
         phrase.push(null);
       } else {
         const rootMidi = noteToMidi[root];
-        // Pick bass note with harmony choice:
         const choice = Math.random();
         let midiNote;
-        if (choice < 0.6) {
-          midiNote = rootMidi - 12; // bass one octave below root
-        } else if (choice < 0.8) {
-          midiNote = rootMidi - 12 + 7; // bass fifth below root
-        } else {
-          midiNote = rootMidi - 24; // two octaves below root (extra low)
-        }
+        if (choice < 0.6) midiNote = rootMidi - 12;
+        else if (choice < 0.8) midiNote = rootMidi - 12 + 7;
+        else midiNote = rootMidi - 24;
         phrase.push(midiToNoteName(midiNote));
       }
     }
     return phrase;
   }
 
-  // === Formatting text output with | measure bars ===
-  // Guitar line: power chord roots or '-' for rest
-  // Bass line: bass note first letter or '-'
-  // Drums track 1: kick "K" snare "S", spaces if none
-  // Drums track 2: open hi-hat "o", closed hi-hat "c", or "-" for none
-
-  // We show 16 quarter notes = 32 eighth notes for drums, so drums lines have twice as many chars as guitar/bass
-
   const noteDisplay = document.getElementById("noteDisplay");
   let displayLines = { guitar: "", bass: "", drums1: "", drums2: "" };
 
-  // Append phrase text with measure bars
   function appendPhraseToDisplay(guitarPhrase, bassPhrase, drumsPattern) {
-    // Guitar and bass have 16 steps; drums have 32 (8th notes)
     const measureLength = beatsPerMeasure;
     const phraseMeasures = measuresPerPhrase;
 
@@ -220,11 +160,11 @@
         displayLines.bass += " | ";
       }
       displayLines.guitar += guitarPhrase[i] ? guitarPhrase[i] : "-";
-      displayLines.bass += bassPhrase[i] ? bassPhrase[i][0] : "-"; // just first char of bass note
+      displayLines.bass += bassPhrase[i] ? bassPhrase[i][0] : "-";
     }
 
     for (let i = 0; i < drumsPattern.length; i++) {
-      if (i > 0 && i % (measureLength * 2) === 0) { // 8th notes per measure
+      if (i > 0 && i % (measureLength * 2) === 0) {
         displayLines.drums1 += " | ";
         displayLines.drums2 += " | ";
       }
@@ -239,19 +179,15 @@
       else displayLines.drums2 += "- ";
     }
 
-    noteDisplay.textContent = 
+    noteDisplay.textContent =
       "Guitar  : " + displayLines.guitar + "\n" +
       "Bass    : " + displayLines.bass + "\n" +
       "Drums 1 : " + displayLines.drums1 + "\n" +
       "Drums 2 : " + displayLines.drums2 + "\n\n";
 
-    // Scroll to bottom so new lines always visible
     noteDisplay.scrollTop = noteDisplay.scrollHeight;
   }
 
-  // === Playback function ===
-
-  // Play drum phrase of 32 eighth notes (16 quarter notes)
   function playDrums(drumPattern, startTime) {
     for (let i = 0; i < drumPattern.length; i++) {
       const time = startTime + i * Tone.Time("8n").toSeconds();
@@ -263,7 +199,6 @@
     }
   }
 
-  // Play guitar phrase (16 quarter notes)
   function playGuitar(guitarPhrase, startTime) {
     for (let i = 0; i < guitarPhrase.length; i++) {
       const time = startTime + i * Tone.Time("4n").toSeconds();
@@ -274,7 +209,6 @@
     }
   }
 
-  // Play bass phrase (16 quarter notes)
   function playBass(bassPhrase, startTime) {
     for (let i = 0; i < bassPhrase.length; i++) {
       const time = startTime + i * Tone.Time("4n").toSeconds();
@@ -285,37 +219,30 @@
     }
   }
 
-  // === Infinite generate & play loop ===
   let running = false;
   async function startLoop() {
     await Tone.start();
     running = true;
-    let phraseCount = 0;
     let nextStart = Tone.now();
 
     while (running) {
-      // Generate phrase
       const guitarPhrase = generateGuitarPhrase();
       const bassPhrase = generateBassPhrase(guitarPhrase);
       const drumsPattern = generateDrums();
 
-      // Append to text output
       appendPhraseToDisplay(guitarPhrase, bassPhrase, drumsPattern);
 
-      // Schedule playback
       playGuitar(guitarPhrase, nextStart);
       playBass(bassPhrase, nextStart);
       playDrums(drumsPattern, nextStart);
 
-      // Advance time by phrase length (4 measures * 4 beats = 16 quarter notes)
-      nextStart += Tone.Time("1m").toSeconds() * measuresPerPhrase; 
+      nextStart += Tone.Time("1m").toSeconds() * measuresPerPhrase;
 
-      // Small delay to avoid blocking UI, yield control to browser
-      await new Promise(r => setTimeout(r, 100));
+      // Let UI breathe
+      await new Promise(r => setTimeout(r, 50));
     }
   }
 
-  // Buttons
   document.getElementById("startBtn").onclick = () => {
     if (!running) startLoop();
   };
