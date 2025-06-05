@@ -3,52 +3,136 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Fixed C Major Randomizer</title>
+  <title>Ultimate Music Randomizer - Two Tracks C Major</title>
   <style>
-    body {
+    /* Reset & base */
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
+      margin: 0; padding: 0;
+      height: 100%;
       font-family: Arial, sans-serif;
-      text-align: center;
       background: #f0f0f0;
-      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow: hidden;
+      user-select: none;
     }
     h1 {
-      margin-bottom: 20px;
+      margin: 20px 0 10px 0;
+      font-weight: 700;
+      color: #333;
+    }
+    #controls {
+      width: 100%;
+      max-width: 700px;
+      padding: 0 20px;
+      text-align: center;
+      z-index: 10;
+      background: #fff;
+      border-bottom: 1px solid #ccc;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    label {
+      font-weight: 700;
+      font-size: 1.2em;
+      margin-right: 10px;
+      vertical-align: middle;
+      color: #555;
+    }
+    input[type=range] {
+      vertical-align: middle;
+      width: 200px;
+      margin: 10px 20px 20px 0;
+    }
+    button {
+      font-size: 1.3em;
+      padding: 12px 25px;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      background: #007bff;
+      color: white;
+      transition: background 0.3s ease;
+      user-select: none;
+    }
+    button:hover {
+      background: #0056b3;
     }
     #noteDisplay {
-      min-height: 100px;
-      border: 1px solid #ccc;
-      margin: 20px auto;
-      width: 300px;
+      flex-grow: 1;
+      width: 100%;
+      max-width: 700px;
       background: white;
-      padding: 10px;
-      font-size: 24px;
-      line-height: 1.5;
-      white-space: pre-wrap;
-      word-wrap: break-word;
+      border: 1px solid #ccc;
+      margin: 20px auto 30px;
+      padding: 30px 40px;
+      font-size: 56px;
+      line-height: 1.3;
+      font-family: "Courier New", Courier, monospace;
       overflow-y: auto;
-      max-height: 150px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #222;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      user-select: text;
+      min-height: 300px;
+      max-height: 70vh;
     }
-    input[type=range], button {
-      margin: 10px;
-      padding: 5px;
+    #noteDisplay span.track-label {
+      font-weight: 900;
+      color: #444;
+      display: block;
+      margin-top: 20px;
+      user-select: none;
+    }
+    #noteDisplay span.note {
+      margin-right: 18px;
+      user-select: text;
+    }
+    /* Responsive */
+    @media (max-width: 480px) {
+      #noteDisplay {
+        font-size: 32px;
+        padding: 20px 20px;
+        max-height: 50vh;
+      }
+      button {
+        font-size: 1.1em;
+        padding: 10px 15px;
+      }
+      input[type=range] {
+        width: 150px;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>🎵 C Major Randomizer</h1>
+  <div id="controls">
+    <h1>🎵 Ultimate C Major Randomizer — Two Tracks</h1>
 
-  <label for="chaosRange">Beat Chaos:</label>
-  <input type="range" id="chaosRange" min="0" max="2" step="1" />
+    <label for="chaosRange">Beat Chaos:</label>
+    <input type="range" id="chaosRange" min="0" max="2" step="1" title="0 = simple quarters, 2 = complex rhythms" />
 
-  <button id="startBtn">▶️ Start</button>
+    <button id="playPauseBtn" title="Play / Pause">▶️ Play</button>
+  </div>
 
-  <div id="noteDisplay">Jianpu: </div>
+  <div id="noteDisplay" aria-live="polite" aria-atomic="false">
+    <span class="track-label">Track 1:</span>
+    <span id="track1Notes" aria-label="Track 1 notes"></span>
 
+    <span class="track-label">Track 2:</span>
+    <span id="track2Notes" aria-label="Track 2 notes"></span>
+  </div>
+
+  <!-- Tone.js library -->
   <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
+
   <script>
-    // Fixed C major scale 2 octaves, from C4 to B5
-    // Notes with exact Jianpu degrees (1 to 7)
-    // Map C=1, D=2, E=3, F=4, G=5, A=6, B=7
+    // Notes for 2 octaves C major scale with Jianpu degrees
     const cMajorNotes = [
       { note: "C4", degree: "1" },
       { note: "D4", degree: "2" },
@@ -66,22 +150,33 @@
       { note: "B5", degree: "7" },
     ];
 
+    // Elements
     const chaosRange = document.getElementById("chaosRange");
-    const startBtn = document.getElementById("startBtn");
-    const noteDisplay = document.getElementById("noteDisplay");
+    const playPauseBtn = document.getElementById("playPauseBtn");
+    const track1Notes = document.getElementById("track1Notes");
+    const track2Notes = document.getElementById("track2Notes");
 
-    let synth = new Tone.Synth().toDestination();
+    // Two distinct synths for rich texture
+    const synth1 = new Tone.Synth({
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
+    }).toDestination();
+
+    const synth2 = new Tone.PluckSynth().toDestination();
+
     let running = false;
 
+    // Choose random duration based on chaos level
     function getRandomDuration(chaosLevel) {
-      if (chaosLevel === 0) return "4n"; // quarter notes only
+      if (chaosLevel === 0) return "4n"; // quarter only
       if (chaosLevel === 1) return ["4n", "8n", "16n"][Math.floor(Math.random() * 3)];
-      // chaosLevel 2: includes triplets & dotted notes
+      // full complex rhythm including triplets and dotted notes
       return ["4n", "8n", "16n", "8t", "4t", "4n.", "16t"][Math.floor(Math.random() * 7)];
     }
 
+    // Convert notation to ms duration (assumes 120 BPM = 500 ms quarter note)
     function getDurationMs(notation) {
-      const quarter = 500; // 120 bpm = 500ms quarter note
+      const quarter = 500;
       switch (notation) {
         case "4n": return quarter;
         case "4t": return (quarter * 2) / 3;
@@ -94,9 +189,8 @@
       }
     }
 
-    async function playLoop() {
-      running = true;
-      noteDisplay.innerHTML = "Jianpu: ";
+    // Play single track loop asynchronously
+    async function playTrack(synth, noteSpan, trackLabel) {
       while (running) {
         const chaosLevel = parseInt(chaosRange.value);
         const { note, degree } = cMajorNotes[Math.floor(Math.random() * cMajorNotes.length)];
@@ -104,16 +198,42 @@
         const durMs = getDurationMs(dur);
 
         synth.triggerAttackRelease(note, dur);
-        noteDisplay.innerHTML += degree + " ";
-        noteDisplay.scrollTop = noteDisplay.scrollHeight;
-        await new Promise((r) => setTimeout(r, durMs));
+
+        // Append the Jianpu note with spacing
+        noteSpan.innerHTML += `<span class="note" aria-label="${degree}">${degree}</span>`;
+
+        // Auto scroll down for overflowing content
+        noteSpan.parentElement.scrollTop = noteSpan.parentElement.scrollHeight;
+
+        // Wait for the duration of the note before continuing loop
+        await new Promise(resolve => setTimeout(resolve, durMs));
       }
     }
 
-    startBtn.addEventListener("click", async () => {
+    let playPromises = [];
+
+    // Play/Pause button toggle
+    playPauseBtn.addEventListener("click", async () => {
       await Tone.start();
       await Tone.context.resume();
-      if (!running) playLoop();
+
+      if (!running) {
+        running = true;
+        playPauseBtn.textContent = "⏸️ Pause";
+
+        // Clear notes output on new play
+        track1Notes.innerHTML = "";
+        track2Notes.innerHTML = "";
+
+        // Start both tracks concurrently
+        playPromises = [
+          playTrack(synth1, track1Notes, "Track 1"),
+          playTrack(synth2, track2Notes, "Track 2"),
+        ];
+      } else {
+        running = false;
+        playPauseBtn.textContent = "▶️ Play";
+      }
     });
   </script>
 </body>
