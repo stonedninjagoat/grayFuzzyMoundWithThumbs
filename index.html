@@ -3,18 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ultimate C Major Randomizer — Combined Tracks Display</title>
+  <title>Ultimate C Major Randomizer — Combined All Tracks Output</title>
   <style>
     * { box-sizing: border-box; }
     html, body {
       margin: 0; padding: 0;
       height: 100%;
-      font-family: Arial, sans-serif;
+      font-family: monospace, monospace;
       background: #f0f0f0;
       display: flex;
       flex-direction: column;
       align-items: center;
-      overflow: hidden;
       user-select: none;
     }
     h1 {
@@ -27,10 +26,11 @@
       max-width: 700px;
       padding: 0 20px;
       text-align: center;
-      z-index: 10;
       background: #fff;
       border-bottom: 1px solid #ccc;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      user-select: none;
+      z-index: 10;
     }
     label {
       font-weight: 700;
@@ -66,43 +66,26 @@
       border: 1px solid #ccc;
       margin: 20px auto 30px;
       padding: 20px 30px;
-      font-size: 18px;
+      font-size: 14px;
       line-height: 1.4;
-      font-family: "Courier New", Courier, monospace;
-      overflow-y: auto;
-      white-space: pre;
       color: #222;
       border-radius: 12px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
       user-select: text;
-      min-height: 300px;
+      overflow-y: auto;
+      white-space: pre;
+      min-height: 350px;
       max-height: 70vh;
     }
     #noteDisplay .header {
       font-weight: 900;
-      margin-bottom: 6px;
+      margin-bottom: 10px;
       user-select: none;
-    }
-    #noteDisplay .combined-tracks {
-      font-family: monospace;
-      white-space: pre;
-      margin-bottom: 25px;
-      user-select: text;
-    }
-    #noteDisplay .drum-label {
-      font-weight: 900;
-      margin-bottom: 6px;
-      user-select: none;
-    }
-    #noteDisplay .drum-notes {
-      font-family: monospace;
-      white-space: pre-wrap;
-      user-select: text;
-      color: #444;
+      text-align: left;
     }
     @media (max-width: 480px) {
       #noteDisplay {
-        font-size: 14px;
+        font-size: 12px;
         padding: 15px 15px;
         max-height: 50vh;
       }
@@ -118,25 +101,22 @@
 </head>
 <body>
   <div id="controls">
-    <h1>Ultimate C Major Randomizer — Combined Tracks Display</h1>
+    <h1>Ultimate C Major Randomizer — Combined All Tracks Output</h1>
 
     <label for="chaosRange">Beat Chaos:</label>
-    <input type="range" id="chaosRange" min="0" max="2" step="1" title="0 = simple quarters, 2 = complex rhythms" />
+    <input type="range" id="chaosRange" min="0" max="2" step="1" title="0 = simple quarters, 2 = complex rhythms" value="1" />
 
     <button id="playPauseBtn" title="Play / Pause">Play</button>
   </div>
 
-  <div id="noteDisplay" aria-live="polite" aria-atomic="false">
-    <div class="header">Tracks 1 &amp; 2 (Degrees stacked):</div>
-    <pre id="combinedTracks" class="combined-tracks" aria-label="Combined track 1 and 2 notes"></pre>
-
-    <div class="drum-label">Track 3 (Acoustic Drums):</div>
-    <pre id="track3Notes" class="drum-notes" aria-label="Track 3 drum hits"></pre>
+  <div id="noteDisplay" aria-live="polite" aria-atomic="false" aria-label="Combined output of tracks 1, 2 and drums">
+    <div class="header">T1  T2  Drum</div>
+    <pre id="combinedOutput"></pre>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
   <script>
-    // C Major notes, two octaves middle (C4-B5)
+    // Notes for track 1 (middle octave)
     const cMajorMiddle = [
       { note: "C4", degree: "1" },
       { note: "D4", degree: "2" },
@@ -154,7 +134,7 @@
       { note: "B5", degree: "7" },
     ];
 
-    // C Major notes, two octaves low (C2-B3)
+    // Notes for track 2 (low octave)
     const cMajorLow = [
       { note: "C2", degree: "1" },
       { note: "D2", degree: "2" },
@@ -172,8 +152,8 @@
       { note: "B3", degree: "7" },
     ];
 
-    // Drum sound names
-    const drumHitNames = ["Kick", "Snare", "Closed Hat", "Open Hat"];
+    // Drum names
+    const drumHitNames = ["Kick", "Snare", "ClosedHat", "OpenHat"];
 
     // Drum synths
     const kick = new Tone.MembraneSynth({
@@ -205,6 +185,7 @@
       octaves: 1.5
     }).toDestination();
 
+    // Durations for chaos levels
     const durationsByChaos = {
       0: ["4n"],
       1: ["4n", "8n", "16n"],
@@ -221,99 +202,87 @@
       "16t": 0.0833
     };
 
+    // Controls
     const chaosRange = document.getElementById("chaosRange");
     const playPauseBtn = document.getElementById("playPauseBtn");
-    const combinedTracksDisplay = document.getElementById("combinedTracks");
-    const track3Notes = document.getElementById("track3Notes");
+    const combinedOutput = document.getElementById("combinedOutput");
 
-    const synthOptions = {
+    // Synths for track 1 and 2
+    const synth1 = new Tone.Synth({
       oscillator: { type: "sine" },
       envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
-    };
+    }).toDestination();
 
-    const synth1 = new Tone.Synth(synthOptions).toDestination();
-    const synth2 = new Tone.Synth(synthOptions).toDestination();
+    const synth2 = new Tone.Synth({
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
+    }).toDestination();
 
+    // Playback state and parts
     let isPlaying = false;
-    let part1 = null;
-    let part2 = null;
-    let part3 = null;
+    let combinedPart = null;
+    let drumPart = null;
 
     function getRandomFromArray(arr) {
       return arr[Math.floor(Math.random() * arr.length)];
     }
 
-    // Create random events arrays, but for combined display we must keep events synced
-    // We'll create arrays of notes for track1 and track2, same length & times, then schedule them together.
+    // We want a single timeline with 32 events max
+    // For each event, generate Track1 note, Track2 note, Drum hit or none
+    // Then schedule them simultaneously and output one line per event:
+    // "T1degree  T2degree  DrumHit"
 
-    function createCombinedParts(synth1, synth2, notesArray1, notesArray2, chaosLevel) {
+    function createCombinedPart(chaosLevel) {
       const events = [];
       let time = 0;
-      // We'll make 32 events
-      for(let i = 0; i < 32; i++) {
-        const noteObj1 = getRandomFromArray(notesArray1);
-        const noteObj2 = getRandomFromArray(notesArray2);
+      const totalEvents = 32;
+
+      for(let i = 0; i < totalEvents; i++) {
+        const note1 = getRandomFromArray(cMajorMiddle);
+        const note2 = getRandomFromArray(cMajorLow);
         const duration = getRandomFromArray(durationsByChaos[chaosLevel]);
         const durSeconds = notationToSeconds[duration];
 
-        events.push({
-          time: time,
-          note1: noteObj1.note,
-          degree1: noteObj1.degree,
-          note2: noteObj2.note,
-          degree2: noteObj2.degree,
-          duration: duration,
-          durSeconds: durSeconds
-        });
-
-        time += durSeconds;
-      }
-
-      const part = new Tone.Part((time, value) => {
-        synth1.triggerAttackRelease(value.note1, value.duration, time);
-        synth2.triggerAttackRelease(value.note2, value.duration, time);
-
-        Tone.Draw.schedule(() => {
-          // Add line with both notes stacked
-          combinedTracksDisplay.textContent += `${value.degree1}    ${value.degree2}\n`;
-        }, time);
-      }, events);
-
-      part.loop = true;
-      part.loopEnd = time;
-
-      return part;
-    }
-
-    function createDrumPart(noteDisplaySpan, chaosLevel) {
-      const events = [];
-      let time = 0;
-      const drumSynths = [kick, snareNoise, closedHat, openHat];
-
-      for(let i = 0; i < 64; i++) {
-        const duration = getRandomFromArray(durationsByChaos[chaosLevel]);
-        const durSeconds = notationToSeconds[duration];
-        const drumIndex = Math.floor(Math.random() * drumSynths.length);
-
-        events.push({
-          time: time,
-          drumIndex: drumIndex,
-          duration: duration,
-          durSeconds: durSeconds,
-        });
-
-        time += durSeconds;
-      }
-
-      const part = new Tone.Part((time, value) => {
-        switch(value.drumIndex) {
-          case 0: kick.triggerAttackRelease("C2", "8n", time); break;
-          case 1: snareNoise.triggerAttackRelease("8n", time); break;
-          case 2: closedHat.triggerAttackRelease("16n", time); break;
-          case 3: openHat.triggerAttackRelease("8n", time); break;
+        // Decide drum hit randomly or blank (50% chance no drum hit)
+        const drumHitChance = Math.random();
+        let drumIndex = null;
+        if(drumHitChance < 0.7) {
+          drumIndex = Math.floor(Math.random() * drumHitNames.length);
         }
+
+        events.push({
+          time,
+          note1,
+          note2,
+          duration,
+          durSeconds,
+          drumIndex
+        });
+
+        time += durSeconds;
+      }
+
+      const part = new Tone.Part((time, value) => {
+        // Trigger notes for track 1 and 2
+        synth1.triggerAttackRelease(value.note1.note, value.duration, time);
+        synth2.triggerAttackRelease(value.note2.note, value.duration, time);
+
+        // Trigger drum hit if any
+        if(value.drumIndex !== null) {
+          switch(value.drumIndex) {
+            case 0: kick.triggerAttackRelease("C2", "8n", time); break;
+            case 1: snareNoise.triggerAttackRelease("8n", time); break;
+            case 2: closedHat.triggerAttackRelease("16n", time); break;
+            case 3: openHat.triggerAttackRelease("8n", time); break;
+          }
+        }
+
+        // Output line string with aligned columns: 2 spaces between each
+        const drumText = value.drumIndex !== null ? drumHitNames[value.drumIndex] : "     ";
+        const line = `${value.note1.degree.padEnd(3)}  ${value.note2.degree.padEnd(3)}  ${drumText}\n`;
+
         Tone.Draw.schedule(() => {
-          noteDisplaySpan.textContent += `${drumHitNames[value.drumIndex][0]} `;
+          combinedOutput.textContent += line;
         }, time);
       }, events);
 
@@ -327,20 +296,17 @@
       await Tone.start();
       await Tone.context.resume();
 
-      combinedTracksDisplay.textContent = "1    2\n"; // header for Track1 & Track2
-      track3Notes.textContent = "";
+      combinedOutput.textContent = "T1   T2   Drum\n";
 
       const chaosLevel = parseInt(chaosRange.value);
 
-      part1 = null;
-      part2 = null;
-      part3 = null;
+      if(combinedPart) {
+        combinedPart.dispose();
+        combinedPart = null;
+      }
 
-      part1 = createCombinedParts(synth1, synth2, cMajorMiddle, cMajorLow, chaosLevel);
-      part3 = createDrumPart(track3Notes, chaosLevel);
-
-      part1.start(0);
-      part3.start(0);
+      combinedPart = createCombinedPart(chaosLevel);
+      combinedPart.start(0);
 
       Tone.Transport.start();
       isPlaying = true;
@@ -349,27 +315,22 @@
 
     function stopPlayback() {
       Tone.Transport.stop();
-
-      if (part1) {
-        part1.dispose();
-        part1 = null;
+      if(combinedPart) {
+        combinedPart.dispose();
+        combinedPart = null;
       }
-      if (part3) {
-        part3.dispose();
-        part3 = null;
-      }
-
       isPlaying = false;
       playPauseBtn.textContent = "Play";
     }
 
     playPauseBtn.addEventListener("click", () => {
-      if (!isPlaying) {
+      if(!isPlaying) {
         startPlayback();
       } else {
         stopPlayback();
       }
     });
+
   </script>
 </body>
 </html>
