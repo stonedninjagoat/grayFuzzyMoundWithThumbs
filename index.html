@@ -15,7 +15,7 @@
       margin-bottom: 10px;
     }
     #noteDisplay {
-      height: 150px;
+      height: 200px;
       width: 95%;
       border: 1px solid #ccc;
       margin: 10px auto;
@@ -71,7 +71,7 @@
         "E1": "hihat.mp3"
       },
       baseUrl: "https://tonejs.github.io/audio/drum-samples/CR78/",
-      onload: () => console.log("Drum samples loaded")
+      onload: () => console.log("Drums ready")
     }).toDestination();
 
     const notes1 = getCMajorNotes();
@@ -81,9 +81,9 @@
       return `${name}${oct}`;
     });
 
-    let line1 = [];
-    let line2 = [];
-    let drums = [];
+    let lineMelody = [];
+    let lineBass = [];
+    let lineDrums = [];
     let running = false;
     const noteDisplay = document.getElementById('noteDisplay');
     const pad = (str, len = 4) => str.padEnd(len, ' ');
@@ -91,7 +91,6 @@
     async function playLoop() {
       await Tone.start();
       running = true;
-      console.log("Playing...");
 
       while (running) {
         const now = Tone.now();
@@ -101,9 +100,9 @@
         const d1 = durations[Math.floor(Math.random() * durations.length)];
         const d2 = durations[Math.floor(Math.random() * durations.length)];
 
-        const drumOpts = ["C1", "D1", "E1", null];
-        const drumNames = {"C1": "K", "D1": "S", "E1": "CHH", null: ""};
-        const drumNote = drumOpts[Math.floor(Math.random() * drumOpts.length)];
+        const drumOptions = ["C1", "D1", "E1", null];
+        const drumLabels = {"C1": "K", "D1": "S", "E1": "CHH", null: ""};
+        const drumNote = drumOptions[Math.floor(Math.random() * drumOptions.length)];
         const drumDur = durations[Math.floor(Math.random() * durations.length)];
 
         synth1.triggerAttackRelease(n1, d1, now);
@@ -112,15 +111,16 @@
 
         const j1 = jianpuMap[n1[0]] || "-";
         const j2 = jianpuMap[n2[0]] || "-";
-        const dr = drumNames[drumNote] || " ";
+        const jDrum = drumLabels[drumNote] || " ";
 
-        line1.push(pad(j1));
-        line2.push(pad(j2));
-        drums.push(pad(dr));
+        lineMelody.push(pad(j1));
+        lineBass.push(pad(j2));
+        lineDrums.push(pad(jDrum));
 
-        noteDisplay.textContent = `${line1.join('')}\n${line2.join('')}\n\nDrums\n${drums.join('')}`;
+        const lines = `Melody\n${lineMelody.join('')}\nBass\n${lineBass.join('')}\nDrums\n${lineDrums.join('')}`;
+        noteDisplay.textContent = lines;
 
-        await new Promise(r => setTimeout(r, Math.max(getDurationMs(d1), 200)));
+        await new Promise(r => setTimeout(r, Math.max(getDurationMs(d1), 150)));
       }
     }
 
