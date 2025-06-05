@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Hardcore Metal Music Generator</title>
+<title>Hardcore Metal Generator Fixed</title>
 <style>
   body {
     font-family: monospace;
@@ -34,19 +34,21 @@
 </head>
 <body>
 
-<h1>Hardcore Metal Music Generator</h1>
+<h1>Hardcore Metal Music Generator — FIXED</h1>
 <button id="startBtn">▶️ Start</button>
 <button id="stopBtn">⏸️ Stop</button>
 <div id="noteDisplay"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
 <script>
-  Tone.Transport.bpm.value = 220; // Very fast tempo, hardcore metal speed
+  // Setup Transport bpm and time signature
+  Tone.Transport.bpm.value = 220;
+  Tone.Transport.timeSignature = [4, 4];
 
-  // === Notes and scales ===
+  // Notes and scales
   const minorPentatonicRoots = ["A", "C", "D", "E", "G"];
-
   const noteToMidi = { A: 57, C: 60, D: 62, E: 64, G: 67 };
+
   function midiToNoteName(midi) {
     const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const note = notes[midi % 12];
@@ -60,7 +62,7 @@
     return [midiToNoteName(rootMidi), midiToNoteName(fifthMidi)];
   }
 
-  // === Synths setup ===
+  // Synths setup
   const guitar = new Tone.PolySynth(Tone.MonoSynth, {
     oscillator: { type: "square" },
     envelope: { attack: 0.005, decay: 0.1, sustain: 0.2, release: 0.1 },
@@ -74,12 +76,12 @@
     volume: -8
   }).toDestination();
 
-  // Drums: more aggressive and fast
+  // Drums: kick, snare, hi-hat
   const kick = new Tone.MembraneSynth({
     pitchDecay: 0.01,
     octaves: 10,
     envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.05 },
-    volume: 2
+    volume: 5
   }).toDestination();
 
   const snare = new Tone.NoiseSynth({
@@ -98,30 +100,25 @@
     volume: -6
   }).toDestination();
 
-  // === Rhythm constants ===
+  // Constants
   const beatsPerMeasure = 4;
   const measuresPerPhrase = 4;
   const sixteenthNotesPerPhrase = beatsPerMeasure * measuresPerPhrase * 4; // 64 sixteenths
 
-  // Generate aggressive fast drums pattern (64 sixteenth notes)
+  // Generate drums pattern for one 4-measure phrase (64 sixteenth notes)
   function generateDrums() {
     const pattern = [];
     for (let i = 0; i < sixteenthNotesPerPhrase; i++) {
-      // Kick on every 1/16th (double kick blast)
-      const kickHit = (i % 2 === 0); // kick on even 16ths
-
-      // Snare on beats 2 and 4 (16th notes 16 and 48)
-      const snareHit = (i === 15 || i === 47);
-
-      // Hi-hat on every 16th note (all the time)
-      const hiHatHit = true;
+      const kickHit = (i % 2 === 0); // kick on even 16ths, fast double kick
+      const snareHit = (i === 15 || i === 47); // snare on beats 2 and 4 (counting from 0)
+      const hiHatHit = true; // constant fast hi-hat
 
       pattern.push({ kick: kickHit, snare: snareHit, hiHat: hiHatHit });
     }
     return pattern;
   }
 
-  // Guitar phrase: power chords on quarter notes (16 per phrase)
+  // Guitar phrase: power chords on quarter notes
   function generateGuitarPhrase() {
     const phrase = [];
     for (let i = 0; i < beatsPerMeasure * measuresPerPhrase; i++) {
@@ -163,7 +160,6 @@
     const measureLength = beatsPerMeasure;
     const phraseMeasures = measuresPerPhrase;
 
-    // Guitar and bass: show root letter or "-" for rest
     for (let i = 0; i < guitarPhrase.length; i++) {
       if (i > 0 && i % measureLength === 0) {
         displayLines.guitar += " | ";
@@ -173,7 +169,6 @@
       displayLines.bass += bassPhrase[i] ? bassPhrase[i][0] : "-";
     }
 
-    // Drums: show letters K, S, H per 16th note, grouped by measure bars every 16 sixteenths
     for (let i = 0; i < drumsPattern.length; i++) {
       if (i > 0 && i % (measureLength * 4) === 0) {
         displayLines.drums += " | ";
@@ -194,7 +189,7 @@
     noteDisplay.scrollTop = noteDisplay.scrollHeight;
   }
 
-  // Playback functions
+  // Play functions
   function playDrums(pattern, startTime) {
     for (let i = 0; i < pattern.length; i++) {
       const time = startTime + i * Tone.Time("16n").toSeconds();
@@ -225,41 +220,54 @@
     }
   }
 
-  // Loop control
+  // State vars
+  let loopId = null;
   let running = false;
+
+  // Generate phrases once and re-use to loop infinitely
+  let currentGuitarPhrase, currentBassPhrase, currentDrumsPattern;
+
+  // Loop callback called every 4 measures
+  function loopCallback(time) {
+    playGuitar(currentGuitarPhrase, time);
+    playBass(currentBassPhrase, time);
+    playDrums(currentDrumsPattern, time);
+
+    appendPhraseToDisplay(currentGuitarPhrase, currentBassPhrase, currentDrumsPattern);
+  }
+
+  // Start and stop handlers
   async function startLoop() {
     await Tone.start();
+    if (running) return;
     running = true;
-    let nextStart = Tone.now();
 
-    // Clear display lines on start
     displayLines = { guitar: "", bass: "", drums: "" };
     noteDisplay.textContent = "";
 
-    while (running) {
-      const guitarPhrase = generateGuitarPhrase();
-      const bassPhrase = generateBassPhrase(guitarPhrase);
-      const drumsPattern = generateDrums();
+    currentGuitarPhrase = generateGuitarPhrase();
+    currentBassPhrase = generateBassPhrase(currentGuitarPhrase);
+    currentDrumsPattern = generateDrums();
 
-      appendPhraseToDisplay(guitarPhrase, bassPhrase, drumsPattern);
+    // Schedule repeating loop every 4 measures
+    loopId = Tone.Transport.scheduleRepeat(loopCallback, "1m * 4");
 
-      playGuitar(guitarPhrase, nextStart);
-      playBass(bassPhrase, nextStart);
-      playDrums(drumsPattern, nextStart);
+    Tone.Transport.start();
+  }
 
-      // Move time forward 4 measures (16 quarter notes)
-      nextStart += Tone.Time("1m").toSeconds() * measuresPerPhrase;
-
-      await new Promise(r => setTimeout(r, 50));
+  function stopLoop() {
+    if (!running) return;
+    running = false;
+    Tone.Transport.stop();
+    if (loopId !== null) {
+      Tone.Transport.clear(loopId);
+      loopId = null;
     }
   }
 
-  document.getElementById("startBtn").onclick = () => {
-    if (!running) startLoop();
-  };
-  document.getElementById("stopBtn").onclick = () => {
-    running = false;
-  };
+  document.getElementById("startBtn").onclick = startLoop;
+  document.getElementById("stopBtn").onclick = stopLoop;
+
 </script>
 
 </body>
