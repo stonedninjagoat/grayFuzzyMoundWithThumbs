@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ultimate Music Randomizer - Two Tracks C Major</title>
+  <title>Ultimate C Major Randomizer - Two Tracks</title>
   <style>
     * { box-sizing: border-box; }
     html, body {
@@ -108,12 +108,12 @@
 </head>
 <body>
   <div id="controls">
-    <h1>🎵 Ultimate C Major Randomizer — Two Tracks</h1>
+    <h1>Ultimate C Major Randomizer — Two Tracks</h1>
 
     <label for="chaosRange">Beat Chaos:</label>
     <input type="range" id="chaosRange" min="0" max="2" step="1" title="0 = simple quarters, 2 = complex rhythms" />
 
-    <button id="playPauseBtn" title="Play / Pause">▶️ Play</button>
+    <button id="playPauseBtn" title="Play / Pause">Play</button>
   </div>
 
   <div id="noteDisplay" aria-live="polite" aria-atomic="false">
@@ -156,7 +156,10 @@
       envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
     }).toDestination();
 
-    const synth2 = new Tone.PluckSynth().toDestination();
+    const synth2 = new Tone.PluckSynth({
+      resonance: 0.9,
+      dampening: 3000
+    }).toDestination();
 
     // Duration options for chaos levels
     const durationsByChaos = {
@@ -165,8 +168,7 @@
       2: ["4n", "8n", "16n", "8t", "4t", "4n.", "16t"]
     };
 
-    // Convert notation duration to seconds at 120 BPM
-    // quarter note = 0.5 seconds
+    // Convert notation duration to seconds at 120 BPM (quarter note = 0.5s)
     const notationToSeconds = {
       "4n": 0.5,
       "8n": 0.25,
@@ -185,16 +187,11 @@
       return arr[Math.floor(Math.random() * arr.length)];
     }
 
-    // Generate a continuous random sequence for a track using Tone.Part and Tone.Transport loop
+    // Create a looping Tone.Part for continuous random notes
     function createRandomPart(synth, noteDisplaySpan, chaosLevel) {
-      // We'll create events spaced in time up to 8 seconds ahead.
-      // This function schedules notes with random note, duration, and intervals
-      // We'll generate many events at once, then repeat continuously.
-
       const events = [];
       let time = 0;
 
-      // Let's make about 32 notes ahead
       for(let i = 0; i < 32; i++) {
         const noteObj = getRandomFromArray(cMajorNotes);
         const duration = getRandomFromArray(durationsByChaos[chaosLevel]);
@@ -208,25 +205,17 @@
           durSeconds: durSeconds,
         });
 
-        // Next note starts right after this duration (no rests)
         time += durSeconds;
       }
 
-      // Create Tone.Part with the events
       const part = new Tone.Part(((time, value) => {
         synth.triggerAttackRelease(value.note, value.duration, time);
-
-        // Update Jianpu display in real time
-        // Using Tone.Draw.schedule to sync UI with audio scheduling
         Tone.Draw.schedule(() => {
-          // Append note
           noteDisplaySpan.innerHTML += `<span class="note" aria-label="${value.degree}">${value.degree}</span>`;
-          // Scroll down automatically
-          noteDisplaySpan.parentElement.scrollTop = noteDisplaySpan.parentElement.scrollHeight;
+          // Removed autoscroll as requested
         }, time);
       }), events).start(0);
 
-      // Loop the part by resetting its start time after total duration
       part.loop = true;
       part.loopEnd = time;
 
@@ -241,7 +230,6 @@
       track1Notes.innerHTML = "";
       track2Notes.innerHTML = "";
 
-      // Create parts with current chaos level
       const chaosLevel = parseInt(chaosRange.value);
 
       part1 = createRandomPart(synth1, track1Notes, chaosLevel);
@@ -249,7 +237,7 @@
 
       Tone.Transport.start();
       isPlaying = true;
-      playPauseBtn.textContent = "⏸️ Pause";
+      playPauseBtn.textContent = "Pause";
     }
 
     function stopPlayback() {
@@ -263,7 +251,7 @@
         part2 = null;
       }
       isPlaying = false;
-      playPauseBtn.textContent = "▶️ Play";
+      playPauseBtn.textContent = "Play";
     }
 
     playPauseBtn.addEventListener("click", () => {
