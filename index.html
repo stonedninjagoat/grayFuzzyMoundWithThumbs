@@ -8,15 +8,15 @@
     body {
       font-family: monospace;
       text-align: center;
-      background: #1a1a1a;
-      color: #eee;
+      background: black;
+      color: lime;
       padding: 20px;
     }
     h1 { margin-bottom: 10px; }
     #noteDisplay {
       height: 200px;
       width: 95%;
-      border: 1px solid #444;
+      border: 1px solid lime;
       background: #111;
       padding: 10px;
       font-size: 12px;
@@ -28,49 +28,50 @@
       margin: 10px;
       padding: 10px;
       font-size: 16px;
-      background: #333;
-      color: #fff;
+      background: lime;
+      color: black;
       border: none;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <h1>🔥 HARDCORE PUNK RANDOMIZER 🔥</h1>
+  <h1>⚡ HARDCORE PUNK GENERATOR ⚡</h1>
   <button id="startBtn">▶️ Start</button>
   <button id="stopBtn">⏸️ Pause</button>
   <div id="noteDisplay"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
   <script>
-    const powerChordMap = {
-      "C": ["C4", "G4"], "D": ["D4", "A4"], "E": ["E4", "B4"],
-      "F": ["F4", "C5"], "G": ["G4", "D5"], "A": ["A3", "E4"], "B": ["B3", "F#4"]
+    // POWER CHORDS
+    const powerChords = {
+      "C": ["C4", "G4"],
+      "D": ["D4", "A4"],
+      "E": ["E4", "B4"],
+      "F": ["F4", "C5"],
+      "G": ["G3", "D4"],
+      "A": ["A3", "E4"],
+      "B": ["B3", "F#4"]
     };
+    const roots = Object.keys(powerChords);
+    const durations = ["16n", "8n"]; // fast and aggressive
+    const getDurationMs = dur => (dur === "16n" ? 125 : 250);
 
-    const rootNotes = Object.keys(powerChordMap);
-    const durations = ["16n", "8n"];
-
-    const getDurationMs = (notation) => {
-      const quarter = 200; // punk = fast
-      return {
-        "8n": quarter / 2,
-        "16n": quarter / 4
-      }[notation] || quarter;
-    };
-
+    // GUITAR: distortion
     const guitar = new Tone.MonoSynth({
       oscillator: { type: "square" },
-      filter: { Q: 6, type: "lowpass", rolloff: -12 },
-      envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.4 }
-    }).connect(new Tone.Distortion(0.6)).toDestination();
+      envelope: { attack: 0.005, decay: 0.2, sustain: 0.1, release: 0.2 }
+    }).connect(new Tone.Distortion(0.7)).toDestination();
 
+    // BASS: fat low-end
     const bass = new Tone.MonoSynth({
       oscillator: { type: "sawtooth" },
-      filter: { type: "lowpass", frequency: 200 },
-      envelope: { attack: 0.01, decay: 0.3, sustain: 0.2, release: 0.4 }
-    }).toDestination();
+      filter: { type: "lowpass", frequency: 100 },
+      envelope: { attack: 0.01, decay: 0.3, sustain: 0.2, release: 0.3 }
+    }).connect(new Tone.FeedbackDelay("8n", 0.2)).toDestination();
 
-    const drumSampler = new Tone.Sampler({
+    // DRUMS: rock/metal
+    const drums = new Tone.Sampler({
       urls: {
         "C1": "kick.mp3",
         "D1": "snare.mp3",
@@ -79,52 +80,51 @@
       baseUrl: "https://tonejs.github.io/audio/drum-samples/CR78/",
     }).toDestination();
 
-    let lineGuitar = [];
-    let lineBass = [];
-    let lineDrums = [];
-    let running = false;
-    const noteDisplay = document.getElementById('noteDisplay');
-    const pad = (str, len = 4) => str.padEnd(len, ' ');
+    // Display
+    let lineGuitar = [], lineBass = [], lineDrums = [];
+    const noteDisplay = document.getElementById("noteDisplay");
+    const pad = (str, len = 5) => str.padEnd(len, " ");
 
-    async function playPunkLoop() {
+    let running = false;
+
+    async function punkLoop() {
       await Tone.start();
       running = true;
 
       while (running) {
         const now = Tone.now();
-        const root = rootNotes[Math.floor(Math.random() * rootNotes.length)];
-        const chord = powerChordMap[root];
+        const root = roots[Math.floor(Math.random() * roots.length)];
+        const chord = powerChords[root];
         const duration = durations[Math.floor(Math.random() * durations.length)];
 
-        // guitar (power chord)
+        // Play guitar (power chord)
         guitar.triggerAttackRelease(chord[0], duration, now);
         guitar.triggerAttackRelease(chord[1], duration, now);
 
-        // bass (root)
-        bass.triggerAttackRelease(chord[0], duration, now);
+        // Play bass (root, octave down)
+        const bassNote = root + "2";
+        bass.triggerAttackRelease(bassNote, duration, now);
 
-        // drums (punk beat)
-        const kick = "C1", snare = "D1", hihat = "E1";
-        drumSampler.triggerAttackRelease(kick, "16n", now);
-        drumSampler.triggerAttackRelease(hihat, "16n", now + 0.1);
-        drumSampler.triggerAttackRelease(snare, "16n", now + 0.2);
+        // Play drums: punk blast pattern
+        drums.triggerAttackRelease("C1", "16n", now);      // kick
+        drums.triggerAttackRelease("E1", "16n", now + 0.05); // hat
+        drums.triggerAttackRelease("D1", "16n", now + 0.1);  // snare
 
-        // text output
+        // Display
         lineGuitar.push(pad(root + "5"));
-        lineBass.push(pad(root));
+        lineBass.push(pad(root + "2"));
         lineDrums.push(pad("K-H-S"));
 
-        const lines = `Guitar\n${lineGuitar.join('')}\nBass\n${lineBass.join('')}\nDrums\n${lineDrums.join('')}`;
-        noteDisplay.textContent = lines;
+        noteDisplay.textContent = `🎸 GUITAR:\n${lineGuitar.join("")}\n🎸 BASS:\n${lineBass.join("")}\n🥁 DRUMS:\n${lineDrums.join("")}`;
 
-        await new Promise(r => setTimeout(r, Math.max(getDurationMs(duration), 100)));
+        await new Promise(r => setTimeout(r, getDurationMs(duration)));
       }
     }
 
-    document.getElementById('startBtn').onclick = () => {
-      if (!running) playPunkLoop();
+    document.getElementById("startBtn").onclick = () => {
+      if (!running) punkLoop();
     };
-    document.getElementById('stopBtn').onclick = () => {
+    document.getElementById("stopBtn").onclick = () => {
       running = false;
     };
   </script>
