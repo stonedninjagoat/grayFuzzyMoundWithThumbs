@@ -14,11 +14,6 @@
     h1 {
       margin-bottom: 20px;
     }
-    button {
-      margin: 10px;
-      padding: 10px;
-      font-size: 16px;
-    }
     #noteDisplay {
       min-height: 100px;
       border: 1px solid #ccc;
@@ -35,10 +30,6 @@
   <h1>🎵 Music Randomizer</h1>
 
   <div id="noteDisplay">Jianpu: </div>
-
-  <button onclick="startPlayback()">▶ Start</button>
-  <button onclick="stopPlayback()">⏹ Stop</button>
-  <button onclick="exportMIDI()">💾 Export MIDI</button>
 
   <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/midiwriter-js@2.1.0/dist/MidiWriter.min.js"></script>
@@ -58,40 +49,21 @@
     let synth = new Tone.Synth().toDestination();
 
     function playRandomNote(time) {
-      if (selectedNotes.length === 0) return;
       const note = selectedNotes[Math.floor(Math.random() * selectedNotes.length)];
       synth.triggerAttackRelease(note, "8n", time);
       noteDisplay.innerHTML += `${jianpuMap[note]} `;
     }
 
-    function startPlayback() {
-      noteDisplay.innerHTML = "Jianpu: ";
-      Tone.Transport.stop();
-      Tone.Transport.cancel();
+    async function startAutomaticPlayback() {
+      await Tone.start(); // ensure audio context is started on user gesture
       Tone.Transport.scheduleRepeat(playRandomNote, "8n");
       Tone.Transport.start();
     }
 
-    function stopPlayback() {
-      Tone.Transport.stop();
-      Tone.Transport.cancel();
-    }
-
-    function exportMIDI() {
-      const track = new MidiWriter.Track();
-      const pitches = Array.from({length: 32}, () => selectedNotes[Math.floor(Math.random() * selectedNotes.length)]);
-      pitches.forEach(note => {
-        track.addEvent(new MidiWriter.NoteEvent({ pitch: [note], duration: '8' }));
-      });
-
-      const write = new MidiWriter.Writer([track]);
-      const blob = new Blob([write.buildFile()], { type: "audio/midi" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'random_music.mid';
-      a.click();
-    }
+    // Auto-start on load
+    window.addEventListener('load', () => {
+      startAutomaticPlayback();
+    });
   </script>
 </body>
 </html>
