@@ -49,7 +49,6 @@
     };
 
     const durations = ["4n", "8n", "16n", "8t", "4t", "4n.", "16t"];
-
     const getDurationMs = (notation) => {
       const quarter = 500;
       return {
@@ -67,9 +66,9 @@
     const synth2 = new Tone.Synth().toDestination();
     const drumSampler = new Tone.Sampler({
       urls: {
-        "C1": "kick.wav",
-        "D1": "snare.wav",
-        "E1": "hihat.wav"
+        "C1": "kick.mp3",
+        "D1": "snare.mp3",
+        "E1": "hihat.mp3"
       },
       baseUrl: "https://tonejs.github.io/audio/drum-samples/CR78/",
       onload: () => console.log("Drum samples loaded")
@@ -86,15 +85,17 @@
     let line2 = [];
     let drums = [];
     let running = false;
-
     const noteDisplay = document.getElementById('noteDisplay');
-
     const pad = (str, len = 4) => str.padEnd(len, ' ');
 
     async function playLoop() {
       await Tone.start();
       running = true;
+      console.log("Playing...");
+
       while (running) {
+        const now = Tone.now();
+
         const n1 = notes1[Math.floor(Math.random() * notes1.length)];
         const n2 = notes2[Math.floor(Math.random() * notes2.length)];
         const d1 = durations[Math.floor(Math.random() * durations.length)];
@@ -105,9 +106,9 @@
         const drumNote = drumOpts[Math.floor(Math.random() * drumOpts.length)];
         const drumDur = durations[Math.floor(Math.random() * durations.length)];
 
-        synth1.triggerAttackRelease(n1, d1);
-        synth2.triggerAttackRelease(n2, d2);
-        if (drumNote) drumSampler.triggerAttackRelease(drumNote, drumDur);
+        synth1.triggerAttackRelease(n1, d1, now);
+        synth2.triggerAttackRelease(n2, d2, now);
+        if (drumNote) drumSampler.triggerAttackRelease(drumNote, drumDur, now);
 
         const j1 = jianpuMap[n1[0]] || "-";
         const j2 = jianpuMap[n2[0]] || "-";
@@ -117,10 +118,9 @@
         line2.push(pad(j2));
         drums.push(pad(dr));
 
-        noteDisplay.textContent =
-          `${line1.join('')}\n${line2.join('')}\n\nDrums\n${drums.join('')}`;
+        noteDisplay.textContent = `${line1.join('')}\n${line2.join('')}\n\nDrums\n${drums.join('')}`;
 
-        await new Promise(r => setTimeout(r, Math.min(getDurationMs(d1), getDurationMs(d2), getDurationMs(drumDur))));
+        await new Promise(r => setTimeout(r, Math.max(getDurationMs(d1), 200)));
       }
     }
 
