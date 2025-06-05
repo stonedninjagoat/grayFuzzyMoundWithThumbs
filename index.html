@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Music Randomizer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f0f0f0;
+      padding: 40px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    select, button {
+      margin: 10px;
+      padding: 10px;
+      font-size: 16px;
+    }
+    #noteList {
+      min-height: 100px;
+      border: 1px solid #ccc;
+      margin: 20px auto;
+      width: 200px;
+      background: white;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎵 Music Randomizer</h1>
+
+  <label for="noteSelect">Choose Note:</label>
+  <select id="noteSelect">
+    <option value="C4">C4</option>
+    <option value="D4">D4</option>
+    <option value="E4">E4</option>
+    <option value="F4">F4</option>
+    <option value="G4">G4</option>
+    <option value="A4">A4</option>
+    <option value="B4">B4</option>
+  </select>
+  <button onclick="addNote()">Add Note</button>
+
+  <div id="noteList"></div>
+
+  <button onclick="startPlayback()">▶ Start</button>
+  <button onclick="stopPlayback()">⏹ Stop</button>
+  <button onclick="exportMIDI()">💾 Export MIDI</button>
+
+  <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/midiwriter-js@2.1.0/dist/MidiWriter.min.js"></script>
+  <script>
+    const selectedNotes = [];
+    const noteListDiv = document.getElementById('noteList');
+    let synth = new Tone.Synth().toDestination();
+    let loopId = null;
+
+    function addNote() {
+      const note = document.getElementById('noteSelect').value;
+      selectedNotes.push(note);
+      noteListDiv.innerHTML += `<div>${note}</div>`;
+    }
+
+    function playRandomNote(time) {
+      if (selectedNotes.length === 0) return;
+      const note = selectedNotes[Math.floor(Math.random() * selectedNotes.length)];
+      synth.triggerAttackRelease(note, "8n", time);
+    }
+
+    function startPlayback() {
+      Tone.Transport.stop();
+      Tone.Transport.cancel();
+      Tone.Transport.scheduleRepeat(playRandomNote, "8n");
+      Tone.Transport.start();
+    }
+
+    function stopPlayback() {
+      Tone.Transport.stop();
+      Tone.Transport.cancel();
+    }
+
+    function exportMIDI() {
+      if (selectedNotes.length === 0) return;
+
+      const track = new MidiWriter.Track();
+      const pitches = Array.from({length: 32}, () => selectedNotes[Math.floor(Math.random() * selectedNotes.length)]);
+      pitches.forEach(note => {
+        track.addEvent(new MidiWriter.NoteEvent({ pitch: [note], duration: '8' }));
+      });
+
+      const write = new MidiWriter.Writer([track]);
+      const blob = new Blob([write.buildFile()], { type: "audio/midi" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'random_music.mid';
+      a.click();
+    }
+  </script>
+</body>
+</html>
