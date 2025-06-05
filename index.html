@@ -2,13 +2,32 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Post-Hardcore Hardcore Jam + Jianpu Output</title>
+<title>Post-Hardcore Jam with Jianpu</title>
 <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.min.js"></script>
 <style>
-  body { background: #121212; color: #eee; font-family: Arial, sans-serif; padding: 20px; }
-  #jianpuOutput { font-size: 2em; margin-bottom: 20px; font-weight: bold; letter-spacing: 0.3em; }
-  button { font-size: 1.4em; padding: 12px 25px; cursor: pointer; background: #333; border: none; border-radius: 8px; color: #eee; }
-  button:hover { background: #555; }
+  body {
+    background: #121212; color: #eee;
+    font-family: Arial, sans-serif;
+    padding: 20px;
+  }
+  #jianpuOutput {
+    font-size: 2em;
+    margin-bottom: 20px;
+    font-weight: bold;
+    letter-spacing: 0.4em;
+  }
+  button {
+    font-size: 1.4em;
+    padding: 12px 25px;
+    cursor: pointer;
+    background: #333;
+    border: none;
+    border-radius: 8px;
+    color: #eee;
+  }
+  button:hover {
+    background: #555;
+  }
 </style>
 </head>
 <body>
@@ -21,33 +40,24 @@
   const startBtn = document.getElementById('startBtn');
   const jianpuOutput = document.getElementById('jianpuOutput');
 
-  // Jianpu (number notation) mapping for roots:
-  // Simplified: C=1, D=2, E=3, F=4, G=5, A=6, B=7 (typical C major scale numbering)
+  // Jianpu number map (C=1 to B=7)
   const JianpuMap = { C: '1', D: '2', E: '3', F: '4', G: '5', A: '6', B: '7' };
 
-  // Root notes for chords (post-hardcore style, keys mostly A, B, C, D, E, F, G)
   const rootNoteMap = {
-    A: "A3",
-    B: "B3",
-    C: "C4",
-    D: "D4",
-    E: "E4",
-    F: "F4",
-    G: "G4"
+    A: "A3", B: "B3", C: "C4", D: "D4", E: "E4", F: "F4", G: "G4"
   };
 
-  // Chord intervals - power chords and triads typical for post-hardcore
+  // Chord intervals (power chords and triads)
   const chordMap = {
-    A: [0, 7],           // A5 power chord
-    B: [0, 4, 7],        // B major triad
-    C: [0, 3, 7],        // C minor triad
-    D: [0, 4, 7],        // D major triad
-    E: [0, 7],           // E5 power chord
-    F: [0, 3, 7],        // F minor triad
-    G: [0, 4, 7]         // G major triad
+    A: [0, 7],
+    B: [0, 4, 7],
+    C: [0, 3, 7],
+    D: [0, 4, 7],
+    E: [0, 7],
+    F: [0, 3, 7],
+    G: [0, 4, 7]
   };
 
-  // Progression patterns: each array is 4 chords representing a measure (4 beats)
   const progressionPatterns = [
     ['A', 'B', 'A', 'B'],
     ['A', 'A', 'B', 'B'],
@@ -59,9 +69,7 @@
     ['C', 'D', 'E', 'F']
   ];
 
-  // Setup Tone.js instruments
-
-  // Guitar synth with distortion
+  // Setup instruments
   const guitarSynth = new Tone.PolySynth(Tone.Synth, {
     oscillator: { type: "sawtooth" },
     envelope: { attack: 0.01, decay: 0.15, sustain: 0.3, release: 0.6 }
@@ -69,7 +77,6 @@
   const distortion = new Tone.Distortion(0.8).toDestination();
   guitarSynth.connect(distortion);
 
-  // Bass synth - mono synth with lowpass filter
   const bassSynth = new Tone.MonoSynth({
     oscillator: { type: "square" },
     filter: { Q: 2, type: "lowpass", rolloff: -24 },
@@ -77,14 +84,12 @@
     filterEnvelope: { attack: 0.001, decay: 0.01, sustain: 0.7, release: 0.8, baseFrequency: 200, octaves: 2.6 }
   }).toDestination();
 
-  // Drums - acoustic samples (kick, snare, hihat)
   const drumKit = new Tone.Players({
     kick: "https://tonejs.github.io/audio/drum-samples/breakbeat/kick.mp3",
     snare: "https://tonejs.github.io/audio/drum-samples/breakbeat/snare.mp3",
     hihat: "https://tonejs.github.io/audio/drum-samples/breakbeat/hihat.mp3"
   }).toDestination();
 
-  // Vocal lead synth with reverb
   const vocalLead = new Tone.Synth({
     oscillator: { type: "sine" },
     envelope: { attack: 0.05, decay: 0.2, sustain: 0.4, release: 0.6 }
@@ -92,7 +97,7 @@
   const reverb = new Tone.Reverb({ decay: 2, wet: 0.15 }).toDestination();
   vocalLead.connect(reverb);
 
-  // Helper: convert note string like "C4" to MIDI note number
+  // Helpers to convert notes
   function noteToMidi(note) {
     const noteRegex = /^([A-G])(#|b)?(\d)$/;
     const noteBase = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
@@ -105,7 +110,6 @@
     return midi;
   }
 
-  // Convert MIDI back to note name (e.g. 60 -> "C4")
   function midiToNoteName(midi) {
     const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const octave = Math.floor(midi / 12) - 1;
@@ -113,28 +117,23 @@
     return note + octave;
   }
 
-  // Play chord on guitar
   function playChord(chordLetter, time) {
     const root = rootNoteMap[chordLetter];
     if (!root) return;
     const rootMidi = noteToMidi(root);
     const intervals = chordMap[chordLetter] || [0, 7];
     const notes = intervals.map(i => midiToNoteName(rootMidi + i));
-    guitarSynth.triggerAttack(notes, time);
-    guitarSynth.triggerRelease(time + Tone.Time("2n").toSeconds());
+    guitarSynth.triggerAttackRelease(notes, "2n", time);
   }
 
-  // Play bass root + octave notes
   function playBass(chordLetter, time) {
     const root = rootNoteMap[chordLetter];
     if (!root) return;
     const rootMidi = noteToMidi(root);
     const octaveNote = midiToNoteName(rootMidi + 12);
-    bassSynth.triggerAttack([root, octaveNote], time);
-    bassSynth.triggerRelease(time + Tone.Time("2n").toSeconds());
+    bassSynth.triggerAttackRelease([root, octaveNote], "2n", time);
   }
 
-  // Schedule drums for one measure (4 beats) at given start time
   function scheduleDrums(startTime) {
     // Kick on beats 1 and 3
     drumKit.player("kick").start(startTime);
@@ -144,15 +143,13 @@
     drumKit.player("snare").start(startTime + Tone.Time("4n").toSeconds());
     drumKit.player("snare").start(startTime + Tone.Time("4n").toSeconds() * 3);
 
-    // Hi-hat 8th notes (8 per measure)
+    // Hi-hat 8th notes
     for (let i = 0; i < 8; i++) {
       drumKit.player("hihat").start(startTime + i * Tone.Time("8n").toSeconds());
     }
   }
 
-  // Generate a simple vocal melody over the chords, one note per chord
   function generateVocalMelody(chords) {
-    // Map chord root letter to a simple pentatonic scale (3 notes)
     const scaleNotes = {
       A: ["A4", "C5", "E5"],
       B: ["B4", "D5", "F#5"],
@@ -170,7 +167,6 @@
     return melody;
   }
 
-  // Play one measure (4 chords)
   function playMeasure(chordSequence, startTime) {
     for (let i = 0; i < chordSequence.length; i++) {
       const chordLetter = chordSequence[i];
@@ -186,22 +182,19 @@
       vocalLead.triggerAttackRelease(vocalMelody[i], "8n", vocalTime);
     }
 
-    // Update Jianpu notation live for the chord sequence
+    // Update Jianpu notation live
     let jianpuStr = chordSequence.map(ch => JianpuMap[ch] || "?").join(" ");
     jianpuOutput.textContent = `Jianpu: ${jianpuStr}`;
   }
 
-  // Main jam loop variables
   let currentMeasure = 0;
   let currentPattern = progressionPatterns[0];
 
-  // Jam start function - schedule measures every 1 measure duration
   function startJam() {
-    Tone.Transport.bpm.value = 200; // hardcore punk speed
+    Tone.Transport.bpm.value = 200;
     Tone.Transport.start();
 
     Tone.Transport.scheduleRepeat(time => {
-      // Pick a new random chord progression pattern every 4 measures (16 beats)
       if (currentMeasure % 4 === 0) {
         currentPattern = progressionPatterns[Math.floor(Math.random() * progressionPatterns.length)];
       }
@@ -210,7 +203,6 @@
     }, "1m");
   }
 
-  // Start button event
   startBtn.onclick = async () => {
     await Tone.start();
     startJam();
