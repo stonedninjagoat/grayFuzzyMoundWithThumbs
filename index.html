@@ -1,70 +1,141 @@
-const track1Notes = [];
-const track2Notes = [];
-const drumNotes = [];
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Music Randomizer</title>
+  <style>
+    body {
+      font-family: monospace;
+      text-align: center;
+      background: #f0f0f0;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    #noteDisplay {
+      height: 150px;
+      width: 95%;
+      border: 1px solid #ccc;
+      margin: 10px auto;
+      background: white;
+      padding: 10px;
+      font-size: 14px;
+      overflow-y: scroll;
+      white-space: pre-wrap;
+      text-align: left;
+    }
+    button {
+      margin: 10px;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Music Randomizer</h1>
+  <button id="startBtn">▶️ Start</button>
+  <button id="stopBtn">⏸️ Pause</button>
+  <div id="noteDisplay"></div>
 
-function padRight(str, length) {
-  return str + " ".repeat(Math.max(0, length - str.length));
-}
+  <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
+  <script>
+    const jianpuMap = {"C": "1", "D": "2", "E": "3", "F": "4", "G": "5", "A": "6", "B": "7"};
 
-async function playLoop() {
-  await Tone.start();
-  running = true;
-  while (running) {
-    const chaosLevel = parseInt(chaosRange.value);
+    const getCMajorNotes = () => {
+      const scale = ["C", "D", "E", "F", "G", "A", "B"];
+      const octaves = [4, 5];
+      const notes = [];
+      for (let o of octaves) {
+        for (let n of scale) {
+          notes.push(`${n}${o}`);
+        }
+      }
+      return notes;
+    };
 
-    // Pick notes and durations
-    const note1 = currentNotes1[Math.floor(Math.random() * currentNotes1.length)];
-    const dur1 = getRandomDuration(chaosLevel);
-    const durMs1 = getDurationMs(dur1);
+    const durations = ["4n", "8n", "16n", "8t", "4t", "4n.", "16t"];
 
-    const note2 = currentNotes2[Math.floor(Math.random() * currentNotes2.length)];
-    const dur2 = getRandomDuration(chaosLevel);
-    const durMs2 = getDurationMs(dur2);
+    const getDurationMs = (notation) => {
+      const quarter = 500;
+      switch (notation) {
+        case "4n": return quarter;
+        case "4t": return quarter * 2 / 3;
+        case "4n.": return quarter * 1.5;
+        case "8n": return quarter / 2;
+        case "8t": return quarter / 3;
+        case "16n": return quarter / 4;
+        case "16t": return quarter / 6;
+        default: return quarter;
+      }
+    };
 
-    // Drum patterns
-    const drumSounds = ["CHH", "OHH", "K", "S"];
-    const drum = drumSounds[Math.floor(Math.random() * drumSounds.length)];
-    const durDrum = getRandomDuration(chaosLevel);
-    const durMsDrum = getDurationMs(durDrum);
+    const synth1 = new Tone.Synth().toDestination();
+    const synth2 = new Tone.Synth().toDestination();
+    const drumSampler = new Tone.Sampler({
+      urls: {
+        "C1": "kick.wav",
+        "D1": "snare.wav",
+        "E1": "hihat.wav"
+      },
+      baseUrl: "https://tonejs.github.io/audio/drum-samples/CR78/",
+    }).toDestination();
 
-    // Play notes and drums
-    synth1.triggerAttackRelease(note1, dur1);
-    synth2.triggerAttackRelease(note2, dur2);
-    drumSampler.triggerAttackRelease(drum, durDrum);
+    const notes1 = getCMajorNotes();
+    const notes2 = getCMajorNotes().map(n => {
+      let name = n.slice(0, -1);
+      let oct = parseInt(n.slice(-1)) - 1;
+      return `${name}${oct}`;
+    });
 
-    // Jianpu degrees (1 to 7) for melodies
-    const midi1 = Tone.Frequency(note1).toMidi() % 12;
-    const deg1 = jianpuMap[midi1 % 7] || "?";
+    let track1 = [];
+    let track2 = [];
+    let drums = [];
+    let running = false;
 
-    const midi2 = Tone.Frequency(note2).toMidi() % 12;
-    const deg2 = jianpuMap[midi2 % 7] || "?";
+    const noteDisplay = document.getElementById('noteDisplay');
 
-    // Save played notes and drum
-    track1Notes.push(deg1);
-    track2Notes.push(deg2);
-    drumNotes.push(drum);
+    const pad = (str, len = 4) => str.padEnd(len, ' ');
 
-    // Compute max length for alignment
-    const maxLength = Math.max(track1Notes.length, track2Notes.length, drumNotes.length);
+    async function playLoop() {
+      await Tone.start();
+      running = true;
+      while (running) {
+        const n1 = notes1[Math.floor(Math.random() * notes1.length)];
+        const n2 = notes2[Math.floor(Math.random() * notes2.length)];
+        const d1 = durations[Math.floor(Math.random() * durations.length)];
+        const d2 = durations[Math.floor(Math.random() * durations.length)];
 
-    // Pad arrays with spaces to align length (if needed)
-    while (track1Notes.length < maxLength) track1Notes.push(" ");
-    while (track2Notes.length < maxLength) track2Notes.push(" ");
-    while (drumNotes.length < maxLength) drumNotes.push("   ");
+        const drumOpts = ["C1", "D1", "E1", null];
+        const drumNames = {"C1": "K", "D1": "S", "E1": "CHH", null: ""};
+        const drumNote = drumOpts[Math.floor(Math.random() * drumOpts.length)];
+        const drumDur = durations[Math.floor(Math.random() * durations.length)];
 
-    // Build output lines
-    let line1 = "";
-    let line2 = "";
-    let line3 = "";
-    for (let i = 0; i < maxLength; i++) {
-      line1 += padRight(track1Notes[i], 3);
-      line2 += padRight(track2Notes[i], 3);
-      line3 += padRight(drumNotes[i], 3);
+        synth1.triggerAttackRelease(n1, d1);
+        synth2.triggerAttackRelease(n2, d2);
+        if (drumNote) drumSampler.triggerAttackRelease(drumNote, drumDur);
+
+        const j1 = jianpuMap[n1[0]];
+        const j2 = jianpuMap[n2[0]];
+        const dr = drumNames[drumNote];
+
+        track1.push(pad(j1));
+        track2.push(pad(j2));
+        drums.push(pad(dr));
+
+        noteDisplay.textContent = `Track 1\n${track1.join('')}\nTrack 2\n${track2.join('')}\nDrums\n${drums.join('')}`;
+
+        await new Promise(r => setTimeout(r, Math.min(getDurationMs(d1), getDurationMs(d2), getDurationMs(drumDur))));
+      }
     }
 
-    noteDisplay.textContent = line1 + "\n" + line2 + "\n" + line3;
+    document.getElementById('startBtn').onclick = () => {
+      if (!running) playLoop();
+    };
 
-    // Wait shortest duration to keep things roughly in sync (you can tweak this)
-    await new Promise(r => setTimeout(r, Math.min(durMs1, durMs2, durMsDrum)));
-  }
-}
+    document.getElementById('stopBtn').onclick = () => {
+      running = false;
+    };
+  </script>
+</body>
+</html>
