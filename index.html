@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ultimate C Major Randomizer - Two Tracks</title>
+  <title>Ultimate C Major Randomizer — Combined Tracks Display</title>
   <style>
     * { box-sizing: border-box; }
     html, body {
@@ -66,12 +66,11 @@
       border: 1px solid #ccc;
       margin: 20px auto 30px;
       padding: 20px 30px;
-      font-size: 22px;       /* much smaller font */
+      font-size: 18px;
       line-height: 1.4;
       font-family: "Courier New", Courier, monospace;
       overflow-y: auto;
-      white-space: pre-wrap;
-      word-break: break-word;
+      white-space: pre;
       color: #222;
       border-radius: 12px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
@@ -79,20 +78,31 @@
       min-height: 300px;
       max-height: 70vh;
     }
-    #noteDisplay span.track-label {
+    #noteDisplay .header {
       font-weight: 900;
-      color: #444;
-      display: block;
-      margin-top: 20px;
+      margin-bottom: 6px;
       user-select: none;
     }
-    #noteDisplay span.note {
-      margin-right: 12px;
+    #noteDisplay .combined-tracks {
+      font-family: monospace;
+      white-space: pre;
+      margin-bottom: 25px;
       user-select: text;
+    }
+    #noteDisplay .drum-label {
+      font-weight: 900;
+      margin-bottom: 6px;
+      user-select: none;
+    }
+    #noteDisplay .drum-notes {
+      font-family: monospace;
+      white-space: pre-wrap;
+      user-select: text;
+      color: #444;
     }
     @media (max-width: 480px) {
       #noteDisplay {
-        font-size: 16px;
+        font-size: 14px;
         padding: 15px 15px;
         max-height: 50vh;
       }
@@ -108,7 +118,7 @@
 </head>
 <body>
   <div id="controls">
-    <h1>Ultimate C Major Randomizer — Two Tracks</h1>
+    <h1>Ultimate C Major Randomizer — Combined Tracks Display</h1>
 
     <label for="chaosRange">Beat Chaos:</label>
     <input type="range" id="chaosRange" min="0" max="2" step="1" title="0 = simple quarters, 2 = complex rhythms" />
@@ -117,18 +127,17 @@
   </div>
 
   <div id="noteDisplay" aria-live="polite" aria-atomic="false">
-    <span class="track-label">Track 1:</span>
-    <span id="track1Notes" aria-label="Track 1 notes"></span>
+    <div class="header">Tracks 1 &amp; 2 (Degrees stacked):</div>
+    <pre id="combinedTracks" class="combined-tracks" aria-label="Combined track 1 and 2 notes"></pre>
 
-    <span class="track-label">Track 2:</span>
-    <span id="track2Notes" aria-label="Track 2 notes"></span>
+    <div class="drum-label">Track 3 (Acoustic Drums):</div>
+    <pre id="track3Notes" class="drum-notes" aria-label="Track 3 drum hits"></pre>
   </div>
 
-  <!-- Tone.js library -->
   <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
-
   <script>
-    const cMajorNotes = [
+    // C Major notes, two octaves middle (C4-B5)
+    const cMajorMiddle = [
       { note: "C4", degree: "1" },
       { note: "D4", degree: "2" },
       { note: "E4", degree: "3" },
@@ -145,27 +154,63 @@
       { note: "B5", degree: "7" },
     ];
 
-    const chaosRange = document.getElementById("chaosRange");
-    const playPauseBtn = document.getElementById("playPauseBtn");
-    const track1Notes = document.getElementById("track1Notes");
-    const track2Notes = document.getElementById("track2Notes");
+    // C Major notes, two octaves low (C2-B3)
+    const cMajorLow = [
+      { note: "C2", degree: "1" },
+      { note: "D2", degree: "2" },
+      { note: "E2", degree: "3" },
+      { note: "F2", degree: "4" },
+      { note: "G2", degree: "5" },
+      { note: "A2", degree: "6" },
+      { note: "B2", degree: "7" },
+      { note: "C3", degree: "1" },
+      { note: "D3", degree: "2" },
+      { note: "E3", degree: "3" },
+      { note: "F3", degree: "4" },
+      { note: "G3", degree: "5" },
+      { note: "A3", degree: "6" },
+      { note: "B3", degree: "7" },
+    ];
 
-    // Both synths identical for consistent tone
-    const synthOptions = {
-      oscillator: { type: "sine" },
-      envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
-    };
-    const synth1 = new Tone.Synth(synthOptions).toDestination();
-    const synth2 = new Tone.Synth(synthOptions).toDestination();
+    // Drum sound names
+    const drumHitNames = ["Kick", "Snare", "Closed Hat", "Open Hat"];
 
-    // Duration options for chaos levels
+    // Drum synths
+    const kick = new Tone.MembraneSynth({
+      pitchDecay: 0.05,
+      octaves: 10,
+      envelope: { attack: 0.001, decay: 0.3, sustain: 0 }
+    }).toDestination();
+
+    const snareNoise = new Tone.NoiseSynth({
+      noise: { type: "white" },
+      envelope: { attack: 0.001, decay: 0.2, sustain: 0 }
+    }).toDestination();
+
+    const closedHat = new Tone.MetalSynth({
+      frequency: 8000,
+      envelope: { attack: 0.001, decay: 0.1, release: 0.01 },
+      harmonicity: 5.1,
+      modulationIndex: 32,
+      resonance: 4000,
+      octaves: 1.5
+    }).toDestination();
+
+    const openHat = new Tone.MetalSynth({
+      frequency: 4000,
+      envelope: { attack: 0.001, decay: 0.3, release: 0.1 },
+      harmonicity: 5.1,
+      modulationIndex: 32,
+      resonance: 3000,
+      octaves: 1.5
+    }).toDestination();
+
     const durationsByChaos = {
       0: ["4n"],
       1: ["4n", "8n", "16n"],
       2: ["4n", "8n", "16n", "8t", "4t", "4n.", "16t"]
     };
 
-    // Convert notation duration to seconds at 120 BPM (quarter note = 0.5s)
     const notationToSeconds = {
       "4n": 0.5,
       "8n": 0.25,
@@ -176,27 +221,83 @@
       "16t": 0.0833
     };
 
+    const chaosRange = document.getElementById("chaosRange");
+    const playPauseBtn = document.getElementById("playPauseBtn");
+    const combinedTracksDisplay = document.getElementById("combinedTracks");
+    const track3Notes = document.getElementById("track3Notes");
+
+    const synthOptions = {
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
+    };
+
+    const synth1 = new Tone.Synth(synthOptions).toDestination();
+    const synth2 = new Tone.Synth(synthOptions).toDestination();
+
     let isPlaying = false;
     let part1 = null;
     let part2 = null;
+    let part3 = null;
 
     function getRandomFromArray(arr) {
       return arr[Math.floor(Math.random() * arr.length)];
     }
 
-    function createRandomPart(synth, noteDisplaySpan, chaosLevel) {
+    // Create random events arrays, but for combined display we must keep events synced
+    // We'll create arrays of notes for track1 and track2, same length & times, then schedule them together.
+
+    function createCombinedParts(synth1, synth2, notesArray1, notesArray2, chaosLevel) {
       const events = [];
       let time = 0;
-
+      // We'll make 32 events
       for(let i = 0; i < 32; i++) {
-        const noteObj = getRandomFromArray(cMajorNotes);
+        const noteObj1 = getRandomFromArray(notesArray1);
+        const noteObj2 = getRandomFromArray(notesArray2);
         const duration = getRandomFromArray(durationsByChaos[chaosLevel]);
         const durSeconds = notationToSeconds[duration];
 
         events.push({
           time: time,
-          note: noteObj.note,
-          degree: noteObj.degree,
+          note1: noteObj1.note,
+          degree1: noteObj1.degree,
+          note2: noteObj2.note,
+          degree2: noteObj2.degree,
+          duration: duration,
+          durSeconds: durSeconds
+        });
+
+        time += durSeconds;
+      }
+
+      const part = new Tone.Part((time, value) => {
+        synth1.triggerAttackRelease(value.note1, value.duration, time);
+        synth2.triggerAttackRelease(value.note2, value.duration, time);
+
+        Tone.Draw.schedule(() => {
+          // Add line with both notes stacked
+          combinedTracksDisplay.textContent += `${value.degree1}    ${value.degree2}\n`;
+        }, time);
+      }, events);
+
+      part.loop = true;
+      part.loopEnd = time;
+
+      return part;
+    }
+
+    function createDrumPart(noteDisplaySpan, chaosLevel) {
+      const events = [];
+      let time = 0;
+      const drumSynths = [kick, snareNoise, closedHat, openHat];
+
+      for(let i = 0; i < 64; i++) {
+        const duration = getRandomFromArray(durationsByChaos[chaosLevel]);
+        const durSeconds = notationToSeconds[duration];
+        const drumIndex = Math.floor(Math.random() * drumSynths.length);
+
+        events.push({
+          time: time,
+          drumIndex: drumIndex,
           duration: duration,
           durSeconds: durSeconds,
         });
@@ -204,13 +305,17 @@
         time += durSeconds;
       }
 
-      const part = new Tone.Part(((time, value) => {
-        synth.triggerAttackRelease(value.note, value.duration, time);
+      const part = new Tone.Part((time, value) => {
+        switch(value.drumIndex) {
+          case 0: kick.triggerAttackRelease("C2", "8n", time); break;
+          case 1: snareNoise.triggerAttackRelease("8n", time); break;
+          case 2: closedHat.triggerAttackRelease("16n", time); break;
+          case 3: openHat.triggerAttackRelease("8n", time); break;
+        }
         Tone.Draw.schedule(() => {
-          noteDisplaySpan.innerHTML += `<span class="note" aria-label="${value.degree}">${value.degree}</span>`;
-          // NO autoscroll or scroll manipulation here, per your request
+          noteDisplaySpan.textContent += `${drumHitNames[value.drumIndex][0]} `;
         }, time);
-      }), events).start(0);
+      }, events);
 
       part.loop = true;
       part.loopEnd = time;
@@ -222,14 +327,20 @@
       await Tone.start();
       await Tone.context.resume();
 
-      // Clear previous notes display
-      track1Notes.innerHTML = "";
-      track2Notes.innerHTML = "";
+      combinedTracksDisplay.textContent = "1    2\n"; // header for Track1 & Track2
+      track3Notes.textContent = "";
 
       const chaosLevel = parseInt(chaosRange.value);
 
-      part1 = createRandomPart(synth1, track1Notes, chaosLevel);
-      part2 = createRandomPart(synth2, track2Notes, chaosLevel);
+      part1 = null;
+      part2 = null;
+      part3 = null;
+
+      part1 = createCombinedParts(synth1, synth2, cMajorMiddle, cMajorLow, chaosLevel);
+      part3 = createDrumPart(track3Notes, chaosLevel);
+
+      part1.start(0);
+      part3.start(0);
 
       Tone.Transport.start();
       isPlaying = true;
@@ -238,14 +349,16 @@
 
     function stopPlayback() {
       Tone.Transport.stop();
-      if(part1) {
+
+      if (part1) {
         part1.dispose();
         part1 = null;
       }
-      if(part2) {
-        part2.dispose();
-        part2 = null;
+      if (part3) {
+        part3.dispose();
+        part3 = null;
       }
+
       isPlaying = false;
       playPauseBtn.textContent = "Play";
     }
