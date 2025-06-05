@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Major7 Guitar Dyads + Bass + Drums + Jianpu Output (Appending)</title>
+<title>Hardcore Major7 Jam w/ Drums + Jianpu + Random Durations + Sections</title>
 <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.min.js"></script>
 <style>
   body { background:#121212; color:#eee; font-family: monospace; padding:1rem; }
@@ -13,7 +13,7 @@
 </head>
 <body>
 
-<h2>Major7 Guitar Dyads + Bass + Drums + Jianpu Output (Appending)</h2>
+<h2>Hardcore Major7 Jam w/ Drums + Jianpu + Random Durations + Sections</h2>
 <button id="start">Start Jam</button>
 
 <pre id="output">
@@ -37,7 +37,7 @@ function noteFromRoot(root, interval) {
   const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
   let note = noteNames[midi % 12];
   if(note.includes('#')) {
-    // convert sharp to flat (simplified)
+    // Convert sharp to flat (simplified)
     let altMidi = midi - 1;
     note = noteNames[altMidi % 12];
   }
@@ -135,9 +135,9 @@ const drumHiHat = new Tone.MetalSynth({
   volume: -15
 }).toDestination();
 
-function playBassNote(root) {
+function playBassNote(root, duration) {
   const octave = 2;
-  bassSynth.triggerAttackRelease(root + octave, '4n');
+  bassSynth.triggerAttackRelease(root + octave, duration);
 }
 
 function scheduleDrums(startMeasure) {
@@ -169,17 +169,23 @@ function playMeasure(time) {
   guitarPairs = generateMaj7Pairs(root);
   currentDyadIndex = 0;
 
-  // Play bass root at measure start
-  playBassNote(root);
+  // Randomize durations slightly for natural feel
+  function randDur() {
+    const options = ['8n', '8t', '16n', '16t'];
+    return options[Math.floor(Math.random()*options.length)];
+  }
 
-  // Play guitar dyads spaced evenly through measure (4 dyads = quarter note each)
+  // Play bass root at measure start with random duration 8n or 8t
+  playBassNote(root, randDur());
+
+  // Play guitar dyads spaced evenly through measure (4 dyads, quarter note each)
   for(let i=0; i<4; i++) {
     let playTime = `+${i * 0.5}n`;
     Tone.Transport.scheduleOnce(() => {
       const dyad = guitarPairs[currentDyadIndex % guitarPairs.length];
       const octave = 4;
       const notesToPlay = dyad.map(n => n + octave);
-      guitarSynth.triggerAttackRelease(notesToPlay, '8n');
+      guitarSynth.triggerAttackRelease(notesToPlay, randDur());
       currentDyadIndex++;
     }, `${time} + ${i * 0.5}n`);
   }
