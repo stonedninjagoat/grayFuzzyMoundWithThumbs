@@ -1,25 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Music Randomizer</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hardcore Punk Generator</title>
   <style>
     body {
       font-family: monospace;
       text-align: center;
-      background: #f0f0f0;
+      background: #1a1a1a;
+      color: #eee;
       padding: 20px;
     }
-    h1 {
-      margin-bottom: 10px;
-    }
+    h1 { margin-bottom: 10px; }
     #noteDisplay {
       height: 200px;
       width: 95%;
-      border: 1px solid #ccc;
-      margin: 10px auto;
-      background: white;
+      border: 1px solid #444;
+      background: #111;
       padding: 10px;
       font-size: 12px;
       overflow-y: scroll;
@@ -29,41 +27,49 @@
     button {
       margin: 10px;
       padding: 10px;
+      font-size: 16px;
+      background: #333;
+      color: #fff;
+      border: none;
     }
   </style>
 </head>
 <body>
-  <h1>Music Randomizer</h1>
+  <h1>🔥 HARDCORE PUNK RANDOMIZER 🔥</h1>
   <button id="startBtn">▶️ Start</button>
   <button id="stopBtn">⏸️ Pause</button>
   <div id="noteDisplay"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
   <script>
-    const jianpuMap = {"C": "1", "D": "2", "E": "3", "F": "4", "G": "5", "A": "6", "B": "7"};
-
-    const getCMajorNotes = () => {
-      const scale = ["C", "D", "E", "F", "G", "A", "B"];
-      const octaves = [4, 5];
-      return octaves.flatMap(o => scale.map(n => `${n}${o}`));
+    const powerChordMap = {
+      "C": ["C4", "G4"], "D": ["D4", "A4"], "E": ["E4", "B4"],
+      "F": ["F4", "C5"], "G": ["G4", "D5"], "A": ["A3", "E4"], "B": ["B3", "F#4"]
     };
 
-    const durations = ["4n", "8n", "16n", "8t", "4t", "4n.", "16t"];
+    const rootNotes = Object.keys(powerChordMap);
+    const durations = ["16n", "8n"];
+
     const getDurationMs = (notation) => {
-      const quarter = 500;
+      const quarter = 200; // punk = fast
       return {
-        "4n": quarter,
-        "4t": quarter * 2 / 3,
-        "4n.": quarter * 1.5,
         "8n": quarter / 2,
-        "8t": quarter / 3,
-        "16n": quarter / 4,
-        "16t": quarter / 6
+        "16n": quarter / 4
       }[notation] || quarter;
     };
 
-    const synth1 = new Tone.Synth().toDestination();
-    const synth2 = new Tone.Synth().toDestination();
+    const guitar = new Tone.MonoSynth({
+      oscillator: { type: "square" },
+      filter: { Q: 6, type: "lowpass", rolloff: -12 },
+      envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.4 }
+    }).connect(new Tone.Distortion(0.6)).toDestination();
+
+    const bass = new Tone.MonoSynth({
+      oscillator: { type: "sawtooth" },
+      filter: { type: "lowpass", frequency: 200 },
+      envelope: { attack: 0.01, decay: 0.3, sustain: 0.2, release: 0.4 }
+    }).toDestination();
+
     const drumSampler = new Tone.Sampler({
       urls: {
         "C1": "kick.mp3",
@@ -71,63 +77,53 @@
         "E1": "hihat.mp3"
       },
       baseUrl: "https://tonejs.github.io/audio/drum-samples/CR78/",
-      onload: () => console.log("Drums ready")
     }).toDestination();
 
-    const notes1 = getCMajorNotes();
-    const notes2 = getCMajorNotes().map(n => {
-      let name = n.slice(0, -1);
-      let oct = parseInt(n.slice(-1)) - 1;
-      return `${name}${oct}`;
-    });
-
-    let lineMelody = [];
+    let lineGuitar = [];
     let lineBass = [];
     let lineDrums = [];
     let running = false;
     const noteDisplay = document.getElementById('noteDisplay');
     const pad = (str, len = 4) => str.padEnd(len, ' ');
 
-    async function playLoop() {
+    async function playPunkLoop() {
       await Tone.start();
       running = true;
 
       while (running) {
         const now = Tone.now();
+        const root = rootNotes[Math.floor(Math.random() * rootNotes.length)];
+        const chord = powerChordMap[root];
+        const duration = durations[Math.floor(Math.random() * durations.length)];
 
-        const n1 = notes1[Math.floor(Math.random() * notes1.length)];
-        const n2 = notes2[Math.floor(Math.random() * notes2.length)];
-        const d1 = durations[Math.floor(Math.random() * durations.length)];
-        const d2 = durations[Math.floor(Math.random() * durations.length)];
+        // guitar (power chord)
+        guitar.triggerAttackRelease(chord[0], duration, now);
+        guitar.triggerAttackRelease(chord[1], duration, now);
 
-        const drumOptions = ["C1", "D1", "E1", null];
-        const drumLabels = {"C1": "K", "D1": "S", "E1": "CHH", null: ""};
-        const drumNote = drumOptions[Math.floor(Math.random() * drumOptions.length)];
-        const drumDur = durations[Math.floor(Math.random() * durations.length)];
+        // bass (root)
+        bass.triggerAttackRelease(chord[0], duration, now);
 
-        synth1.triggerAttackRelease(n1, d1, now);
-        synth2.triggerAttackRelease(n2, d2, now);
-        if (drumNote) drumSampler.triggerAttackRelease(drumNote, drumDur, now);
+        // drums (punk beat)
+        const kick = "C1", snare = "D1", hihat = "E1";
+        drumSampler.triggerAttackRelease(kick, "16n", now);
+        drumSampler.triggerAttackRelease(hihat, "16n", now + 0.1);
+        drumSampler.triggerAttackRelease(snare, "16n", now + 0.2);
 
-        const j1 = jianpuMap[n1[0]] || "-";
-        const j2 = jianpuMap[n2[0]] || "-";
-        const jDrum = drumLabels[drumNote] || " ";
+        // text output
+        lineGuitar.push(pad(root + "5"));
+        lineBass.push(pad(root));
+        lineDrums.push(pad("K-H-S"));
 
-        lineMelody.push(pad(j1));
-        lineBass.push(pad(j2));
-        lineDrums.push(pad(jDrum));
-
-        const lines = `Melody\n${lineMelody.join('')}\nBass\n${lineBass.join('')}\nDrums\n${lineDrums.join('')}`;
+        const lines = `Guitar\n${lineGuitar.join('')}\nBass\n${lineBass.join('')}\nDrums\n${lineDrums.join('')}`;
         noteDisplay.textContent = lines;
 
-        await new Promise(r => setTimeout(r, Math.max(getDurationMs(d1), 150)));
+        await new Promise(r => setTimeout(r, Math.max(getDurationMs(duration), 100)));
       }
     }
 
     document.getElementById('startBtn').onclick = () => {
-      if (!running) playLoop();
+      if (!running) playPunkLoop();
     };
-
     document.getElementById('stopBtn').onclick = () => {
       running = false;
     };
