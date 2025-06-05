@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Hardcore Major7 Jam w/ Drums + Jianpu + Random Durations + Sections</title>
+<title>Hardcore Punk Major7 Arpeggio Jam + Drums + Jianpu</title>
 <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.min.js"></script>
 <style>
   body { background:#121212; color:#eee; font-family: monospace; padding:1rem; }
@@ -13,7 +13,7 @@
 </head>
 <body>
 
-<h2>Hardcore Major7 Jam w/ Drums + Jianpu + Random Durations + Sections</h2>
+<h2>Hardcore Punk Major7 Arpeggio Jam + Drums + Jianpu</h2>
 <button id="start">Start Jam</button>
 
 <pre id="output">
@@ -25,63 +25,46 @@ const JianpuMap = { 'C': '1', 'D': '2', 'E': '3', 'F': '4', 'G': '5', 'A': '6', 
 const major7Intervals = [0,4,7,11];
 const roots = ['C','D','E','F','G','A','B'];
 
-const drumPatterns = {
-  hihat: ['open', 'close', 'close', 'open', 'close', 'close', 'close', 'open'],
-  kick:  [1,0,0,0,1,0,0,0],
-  snare: [0,0,1,0,0,0,1,0]
-};
+// Convert midi number to note letter (C, D, E, F, G, A, B)
+function midiToNoteName(midi) {
+  const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  return names[midi % 12].replace('#','');
+}
 
+// Given root letter, interval semitones, return note letter (C,B,A...)
 function noteFromRoot(root, interval) {
-  const midiMap = { C: 60, D: 62, E: 64, F: 65, G: 67, A: 69, B: 71 };
-  let midi = midiMap[root] + interval;
-  const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-  let note = noteNames[midi % 12];
-  if(note.includes('#')) {
-    // Convert sharp to flat (simplified)
-    let altMidi = midi - 1;
-    note = noteNames[altMidi % 12];
+  const rootMidiMap = { C: 60, D: 62, E: 64, F: 65, G: 67, A: 69, B: 71 };
+  let midi = rootMidiMap[root] + interval;
+  return midiToNoteName(midi);
+}
+
+// Generate chord notes (Major7) letters from root
+function generateMaj7Notes(root) {
+  return major7Intervals.map(i => noteFromRoot(root, i));
+}
+
+// Jianpu format for notes array, 1 per line, spaced by octave if given
+function toJianpu(notes) {
+  return notes.map(note => JianpuMap[note] || '?').join(' ');
+}
+
+// Random shuffle array helper
+function shuffle(array) {
+  let arr = array.slice();
+  for(let i=arr.length-1; i>0; i--){
+    let j = Math.floor(Math.random()*(i+1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
-  return note[0];
+  return arr;
 }
 
-function generateMaj7Pairs(root) {
-  const chordNotes = major7Intervals.map(i => noteFromRoot(root, i));
-  let pairs = [];
-  for(let i=0; i<chordNotes.length; i++) {
-    for(let j=i+1; j<chordNotes.length; j++) {
-      pairs.push([chordNotes[i], chordNotes[j]]);
-    }
-  }
-  pairs.sort(() => Math.random() - 0.5);
-  return pairs;
-}
-
-function pairsToJianpu(pairs) {
-  return pairs.map(pair => pair.map(note => JianpuMap[note]||'?').join(' ')).join('\n');
-}
-
-function drumTrack1Jianpu() {
-  return drumPatterns.hihat.map(h => h === 'open' ? '◯' : 'x').join('');
-}
-
-function drumTrack2Jianpu() {
-  let result = '';
-  for(let i=0; i<8; i++) {
-    if(drumPatterns.kick[i] && drumPatterns.snare[i]) result += '◎';
-    else if(drumPatterns.kick[i]) result += '●';
-    else if(drumPatterns.snare[i]) result += '○';
-    else result += '·';
-  }
-  return result;
-}
-
+// Section Patterns & roots
 const sectionPatterns = [
   ['A','B','A','B'],
   ['A','A','B','B'],
   ['A','B','C','D'],
   ['A','B','C','C']
 ];
-
 let sectionRoots = {};
 function randomizeSectionRoots() {
   sectionRoots = {};
@@ -94,129 +77,133 @@ let currentPattern = [];
 let currentSectionIndex = 0;
 let measureCount = 0;
 
-function choosePattern() {
-  currentPattern = sectionPatterns[Math.floor(Math.random()*sectionPatterns.length)];
-  currentSectionIndex = 0;
-  randomizeSectionRoots();
-}
-
+// Synths setup
 const guitarSynth = new Tone.PolySynth(Tone.Synth, {
   oscillator: { type: 'square' },
-  envelope: { attack: 0.01, decay: 0.1, sustain: 0.4, release: 0.1 }
+  envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 0.05 }
 }).toDestination();
 
 const bassSynth = new Tone.MonoSynth({
   oscillator: { type: 'sawtooth' },
   filter: { Q: 2, type: 'lowpass', rolloff: -24 },
-  envelope: { attack: 0.01, decay: 0.3, sustain: 0.5, release: 0.3 },
+  envelope: { attack: 0.005, decay: 0.2, sustain: 0.5, release: 0.1 },
   filterEnvelope: { attack: 0.001, decay: 0.01, sustain: 0.5, release: 0.01, baseFrequency: 200, octaves: 2.6 }
 }).toDestination();
 
 const drumKick = new Tone.MembraneSynth({
   pitchDecay: 0.05,
   octaves: 10,
-  envelope: { attack: 0.001, decay: 0.2, sustain: 0 },
+  envelope: { attack: 0.001, decay: 0.15, sustain: 0 },
   volume: -8
 }).toDestination();
 
 const drumSnare = new Tone.NoiseSynth({
   noise: { type: 'white' },
-  envelope: { attack: 0.001, decay: 0.15, sustain: 0 },
+  envelope: { attack: 0.001, decay: 0.1, sustain: 0 },
   volume: -12
 }).toDestination();
 
 const drumHiHat = new Tone.MetalSynth({
-  frequency: 4000,
-  envelope: { attack: 0.001, decay: 0.1, release: 0.01 },
+  frequency: 6000,
+  envelope: { attack: 0.001, decay: 0.05, release: 0.01 },
   harmonicity: 5.1,
   modulationIndex: 32,
-  resonance: 4000,
+  resonance: 6000,
   octaves: 1.5,
   volume: -15
 }).toDestination();
 
-function playBassNote(root, duration) {
-  const octave = 2;
-  bassSynth.triggerAttackRelease(root + octave, duration);
-}
-
-function scheduleDrums(startMeasure) {
-  for(let i=0; i<8; i++) {
-    let time = `${startMeasure}m + ${i*0.5}n`;
-    if(drumPatterns.kick[i]) {
-      Tone.Transport.scheduleOnce(() => drumKick.triggerAttackRelease('C2', '8n'), time);
+// Hardcore punk drum pattern (8th notes at 220bpm)
+// Kick on 1 & 3; snare on 2 & 4; hihat steady 8ths with some ghost notes
+function scheduleDrums(measureNum) {
+  const measureStart = `${measureNum}m`;
+  for(let i=0; i<8; i++){
+    let time = `${measureStart} + ${i*0.5}n`;
+    // HiHat steady 8ths
+    Tone.Transport.scheduleOnce(() => drumHiHat.triggerAttackRelease('16n'), time);
+    // Kick on beats 1 & 3 (i=0,4)
+    if(i === 0 || i === 4) {
+      Tone.Transport.scheduleOnce(() => drumKick.triggerAttackRelease('8n'), time);
     }
-    if(drumPatterns.snare[i]) {
+    // Snare on beats 2 & 4 (i=2,6)
+    if(i === 2 || i === 6) {
       Tone.Transport.scheduleOnce(() => drumSnare.triggerAttackRelease('16n'), time);
     }
-    if(drumPatterns.hihat[i] === 'open') {
-      Tone.Transport.scheduleOnce(() => drumHiHat.triggerAttackRelease('16n'), time);
-    } else if(drumPatterns.hihat[i] === 'close') {
-      Tone.Transport.scheduleOnce(() => drumHiHat.triggerAttackRelease('32n'), time);
+    // Ghost snare very soft on 7th 16th note
+    if(i === 7){
+      Tone.Transport.scheduleOnce(() => drumSnare.triggerAttackRelease('32n', undefined, 0.15), time);
     }
   }
 }
 
-let guitarPairs = [];
-let currentDyadIndex = 0;
+// Bass punk style: fast alternating root and octave on 8th notes
+function scheduleBass(root, measureNum) {
+  const rootMidiMap = { C: 'C2', D: 'D2', E: 'E2', F: 'F2', G: 'G2', A: 'A2', B: 'B2' };
+  const octaveMidiMap = { C: 'C3', D: 'D3', E: 'E3', F: 'F3', G: 'G3', A: 'A3', B: 'B3' };
+  const measureStart = `${measureNum}m`;
+  for(let i=0; i<8; i++) {
+    let time = `${measureStart} + ${i*0.5}n`;
+    let note = (i % 2 === 0) ? rootMidiMap[root] : octaveMidiMap[root];
+    Tone.Transport.scheduleOnce(() => bassSynth.triggerAttackRelease(note, '8n'), time);
+  }
+}
+
+// Play guitar arpeggiated chord notes in random order during measure
+function scheduleGuitar(root, measureNum) {
+  const chordNotes = generateMaj7Notes(root);
+  const shuffledNotes = shuffle(chordNotes);
+  const measureStart = `${measureNum}m`;
+  // 8 arpeggiated notes per measure at 16th note speed (~fast punk arpeggio)
+  for(let i=0; i<8; i++) {
+    let time = `${measureStart} + ${i*0.25}n`;
+    let note = shuffledNotes[i % shuffledNotes.length] + '4';
+    Tone.Transport.scheduleOnce(() => {
+      guitarSynth.triggerAttackRelease(note, '16n');
+    }, time);
+  }
+}
+
+// Randomize and choose pattern and roots
+function choosePattern() {
+  currentPattern = sectionPatterns[Math.floor(Math.random()*sectionPatterns.length)];
+  currentSectionIndex = 0;
+  randomizeSectionRoots();
+}
 
 function playMeasure(time) {
-  if(measureCount % 4 === 0) {
+  if(measureCount % 4 === 0){
     choosePattern();
   }
   const section = currentPattern[currentSectionIndex];
   const root = sectionRoots[section];
-  guitarPairs = generateMaj7Pairs(root);
-  currentDyadIndex = 0;
 
-  // Randomize durations slightly for natural feel
-  function randDur() {
-    const options = ['8n', '8t', '16n', '16t'];
-    return options[Math.floor(Math.random()*options.length)];
-  }
-
-  // Play bass root at measure start with random duration 8n or 8t
-  playBassNote(root, randDur());
-
-  // Play guitar dyads spaced evenly through measure (4 dyads, quarter note each)
-  for(let i=0; i<4; i++) {
-    let playTime = `+${i * 0.5}n`;
-    Tone.Transport.scheduleOnce(() => {
-      const dyad = guitarPairs[currentDyadIndex % guitarPairs.length];
-      const octave = 4;
-      const notesToPlay = dyad.map(n => n + octave);
-      guitarSynth.triggerAttackRelease(notesToPlay, randDur());
-      currentDyadIndex++;
-    }, `${time} + ${i * 0.5}n`);
-  }
-
+  scheduleGuitar(root, measureCount);
+  scheduleBass(root, measureCount);
   scheduleDrums(measureCount);
 
-  // Append new Jianpu output (don't erase old)
+  // Append Jianpu output for guitar notes (random arpeggio), bass roots, and drums
   const out = document.getElementById('output');
-  out.textContent += 
+  out.textContent +=
 `---
-Measure ${measureCount+1} | Section ${section} | Root: ${root}
+Measure ${measureCount + 1} | Section ${section} | Root: ${root}
 
-Guitar Jianpu:
-${pairsToJianpu(guitarPairs)}
+Guitar Jianpu (random arpeggio notes):
+${toJianpu(generateMaj7Notes(root))}
 
-Bass Jianpu:
-${JianpuMap[root] || '?'}
+Bass Jianpu (root + octave fast 8ths):
+${JianpuMap[root] || '?'} ${JianpuMap[root] || '?'} (alternating low & high)
 
-Drums Track1 (HiHat):
-${drumTrack1Jianpu()}
-
-Drums Track2 (Kick/Snare):
-${drumTrack2Jianpu()}
+Drums:
+HiHat: steady 8ths
+Kick: beats 1 & 3
+Snare: beats 2 & 4 + ghost note
 
 `;
 
+  out.scrollTop = out.scrollHeight;
+
   measureCount++;
   currentSectionIndex = (currentSectionIndex + 1) % currentPattern.length;
-
-  // Auto scroll down the output box
-  out.scrollTop = out.scrollHeight;
 }
 
 document.getElementById('start').onclick = async () => {
