@@ -48,68 +48,79 @@
   <div id="noteDisplay">Jianpu: </div>
 
   <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
-  <script>
-    const scalePatterns = {
-      major: [0, 2, 4, 5, 7, 9, 11],
-      minor: [0, 2, 3, 5, 7, 8, 10],
-      majPent: [0, 2, 4, 7, 9],
-      minPent: [0, 3, 5, 7, 10],
-      chromatic: Array.from({ length: 12 }, (_, i) => i)
-    };
+<script>
+  const scalePatterns = {
+    major: [0, 2, 4, 5, 7, 9, 11],
+    minor: [0, 2, 3, 5, 7, 8, 10],
+    majPent: [0, 2, 4, 7, 9],
+    minPent: [0, 3, 5, 7, 10],
+    chromatic: Array.from({ length: 12 }, (_, i) => i)
+  };
 
-    const jianpuMap = ["1", "2", "3", "4", "5", "6", "7"];
+  const jianpuMap = ["1", "2", "3", "4", "5", "6", "7"];
 
-    const getScaleNotes = (base = "C4", pattern = scalePatterns.major) => {
-      const baseMidi = Tone.Frequency(base).toMidi();
-      const notes = [];
-      for (let octave = 0; octave < 2; octave++) {
-        for (let interval of pattern) {
-          notes.push(Tone.Frequency(baseMidi + interval + octave * 12, "midi").toNote());
-        }
+  const getScaleNotes = (base = "C4", pattern = scalePatterns.major) => {
+    const baseMidi = Tone.Frequency(base).toMidi();
+    const notes = [];
+    for (let octave = 0; octave < 2; octave++) {
+      for (let interval of pattern) {
+        notes.push(Tone.Frequency(baseMidi + interval + octave * 12, "midi").toNote());
       }
-      return notes;
-    };
+    }
+    return notes;
+  };
 
-    const getRandomDuration = (chaosLevel) => {
-      if (chaosLevel === 0) return "4n";
-      if (chaosLevel === 1) return ["4n", "8n", "16n"][Math.floor(Math.random() * 3)];
-      return ["4n", "8n", "16n", "8t", "4t", "4n.", "16t"][Math.floor(Math.random() * 7)];
-    };
+  const getRandomDuration = (chaosLevel) => {
+    if (chaosLevel === 0) return "4n";
+    if (chaosLevel === 1) return ["4n", "8n", "16n"][Math.floor(Math.random() * 3)];
+    return ["4n", "8n", "16n", "8t", "4t", "4n.", "16t"][Math.floor(Math.random() * 7)];
+  };
 
-    const noteDisplay = document.getElementById('noteDisplay');
-    const scaleSelect = document.getElementById('scaleSelect');
-    const chaosRange = document.getElementById('chaosRange');
+  const getDurationMs = (notation) => {
+    // Rough estimation for 120 BPM
+    const quarter = 500;
+    switch (notation) {
+      case "4n": return quarter;
+      case "4t": return quarter * 2 / 3;
+      case "4n.": return quarter * 1.5;
+      case "8n": return quarter / 2;
+      case "8t": return quarter / 3;
+      case "16n": return quarter / 4;
+      case "16t": return quarter / 6;
+      default: return quarter;
+    }
+  };
 
-    let synth = new Tone.Synth().toDestination();
-    let currentNotes = getScaleNotes();
+  const noteDisplay = document.getElementById('noteDisplay');
+  const scaleSelect = document.getElementById('scaleSelect');
+  const chaosRange = document.getElementById('chaosRange');
 
-    function playRandomNote(time) {
+  let synth = new Tone.Synth().toDestination();
+  let currentNotes = getScaleNotes();
+
+  async function playLoop() {
+    await Tone.start();
+    while (true) {
       const chaosLevel = parseInt(chaosRange.value);
       const note = currentNotes[Math.floor(Math.random() * currentNotes.length)];
+      const dur = getRandomDuration(chaosLevel);
+      const durMs = getDurationMs(dur);
       const midi = Tone.Frequency(note).toMidi() % 12;
       const jianpu = jianpuMap[midi % 7] || "?";
-      const dur = getRandomDuration(chaosLevel);
-      synth.triggerAttackRelease(note, dur, time);
+      synth.triggerAttackRelease(note, dur);
       noteDisplay.innerHTML += `${jianpu} `;
-      Tone.Transport.scheduleOnce(playRandomNote, `+${dur}`);
+      await new Promise(r => setTimeout(r, durMs));
     }
+  }
 
-    async function startAutomaticPlayback() {
-      await Tone.start();
-      Tone.Transport.cancel();
-      Tone.Transport.scheduleOnce(playRandomNote, 0);
-      Tone.Transport.start();
-    }
+  scaleSelect.addEventListener('change', () => {
+    currentNotes = getScaleNotes("C4", scalePatterns[scaleSelect.value]);
+  });
 
-    scaleSelect.addEventListener('change', () => {
-      const selected = scaleSelect.value;
-      currentNotes = getScaleNotes("C4", scalePatterns[selected]);
-    });
-
-    window.addEventListener('load', () => {
-      currentNotes = getScaleNotes("C4", scalePatterns[scaleSelect.value]);
-      startAutomaticPlayback();
-    });
-  </script>
+  window.addEventListener('load', () => {
+    currentNotes = getScaleNotes("C4", scalePatterns[scaleSelect.value]);
+    playLoop();
+  });
+</script>
 </body>
 </html>
