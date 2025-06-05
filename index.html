@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Hardcore Punk Music Generator</title>
+<title>Hardcore Metal Music Generator</title>
 <style>
   body {
     font-family: monospace;
@@ -34,19 +34,18 @@
 </head>
 <body>
 
-<h1>Hardcore Punk Music Generator</h1>
+<h1>Hardcore Metal Music Generator</h1>
 <button id="startBtn">▶️ Start</button>
 <button id="stopBtn">⏸️ Stop</button>
 <div id="noteDisplay"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
 <script>
-  Tone.Transport.bpm.value = 180; // Hardcore punk tempo
+  Tone.Transport.bpm.value = 220; // Very fast tempo, hardcore metal speed
 
-  // === Scales and notes ===
+  // === Notes and scales ===
   const minorPentatonicRoots = ["A", "C", "D", "E", "G"];
 
-  // Note to MIDI mapping for octave 4 guitar/bass range
   const noteToMidi = { A: 57, C: 60, D: 62, E: 64, G: 67 };
   function midiToNoteName(midi) {
     const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -62,14 +61,12 @@
   }
 
   // === Synths setup ===
-  // Guitar: MonoSynth + Distortion for overdrive sound
   const guitar = new Tone.PolySynth(Tone.MonoSynth, {
     oscillator: { type: "square" },
     envelope: { attack: 0.005, decay: 0.1, sustain: 0.2, release: 0.1 },
     filterEnvelope: { attack: 0.001, decay: 0.05, sustain: 0.3, release: 0.05 }
   }).chain(new Tone.Distortion(0.8), new Tone.Gain(0.7), Tone.Destination);
 
-  // Bass: MonoSynth with sawtooth for bass guitar tone
   const bass = new Tone.MonoSynth({
     oscillator: { type: "sawtooth" },
     filter: { type: "lowpass", frequency: 150 },
@@ -77,49 +74,46 @@
     volume: -8
   }).toDestination();
 
-  // Drums: simple synths for kick, snare, and hi-hat
+  // Drums: more aggressive and fast
   const kick = new Tone.MembraneSynth({
-    pitchDecay: 0.05,
+    pitchDecay: 0.01,
     octaves: 10,
-    envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.1 },
-    volume: 0
+    envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.05 },
+    volume: 2
   }).toDestination();
 
   const snare = new Tone.NoiseSynth({
     noise: { type: "white" },
-    envelope: { attack: 0.001, decay: 0.15, sustain: 0 },
-    volume: -2
+    envelope: { attack: 0.001, decay: 0.1, sustain: 0 },
+    volume: 0
   }).toDestination();
 
   const hiHatClosed = new Tone.MetalSynth({
-    frequency: 4000,
-    envelope: { attack: 0.001, decay: 0.1, release: 0.05 },
+    frequency: 8000,
+    envelope: { attack: 0.001, decay: 0.05, release: 0.02 },
     harmonicity: 5.1,
     modulationIndex: 32,
     resonance: 4000,
     octaves: 1.5,
-    volume: -10
+    volume: -6
   }).toDestination();
 
   // === Rhythm constants ===
   const beatsPerMeasure = 4;
   const measuresPerPhrase = 4;
-  const quarterNotesPerPhrase = beatsPerMeasure * measuresPerPhrase; // 16
+  const sixteenthNotesPerPhrase = beatsPerMeasure * measuresPerPhrase * 4; // 64 sixteenths
 
-  // Generate drums pattern for one phrase (32 eighth notes)
+  // Generate aggressive fast drums pattern (64 sixteenth notes)
   function generateDrums() {
     const pattern = [];
-    for (let i = 0; i < quarterNotesPerPhrase * 2; i++) { // 32 eighth notes
-      const isOnBeat = i % 2 === 0;
-      const stepInMeasure = (i / 2) % beatsPerMeasure;
+    for (let i = 0; i < sixteenthNotesPerPhrase; i++) {
+      // Kick on every 1/16th (double kick blast)
+      const kickHit = (i % 2 === 0); // kick on even 16ths
 
-      // Kick on all quarter notes (four on floor)
-      let kickHit = isOnBeat;
+      // Snare on beats 2 and 4 (16th notes 16 and 48)
+      const snareHit = (i === 15 || i === 47);
 
-      // Snare on beats 2 and 4
-      const snareHit = isOnBeat && (stepInMeasure === 1 || stepInMeasure === 3);
-
-      // Hi-hat closed on all 8th notes
+      // Hi-hat on every 16th note (all the time)
       const hiHatHit = true;
 
       pattern.push({ kick: kickHit, snare: snareHit, hiHat: hiHatHit });
@@ -127,11 +121,11 @@
     return pattern;
   }
 
-  // Generate guitar phrase: power chords on 16 quarter notes
+  // Guitar phrase: power chords on quarter notes (16 per phrase)
   function generateGuitarPhrase() {
     const phrase = [];
-    for (let i = 0; i < quarterNotesPerPhrase; i++) {
-      if (Math.random() < 0.8) {
+    for (let i = 0; i < beatsPerMeasure * measuresPerPhrase; i++) {
+      if (Math.random() < 0.9) {
         const root = minorPentatonicRoots[Math.floor(Math.random() * minorPentatonicRoots.length)];
         phrase.push(root);
       } else {
@@ -141,7 +135,7 @@
     return phrase;
   }
 
-  // Generate bass phrase harmonizing with guitar phrase
+  // Bass phrase harmonizing guitar phrase
   function generateBassPhrase(guitarPhrase) {
     const phrase = [];
     for (let i = 0; i < guitarPhrase.length; i++) {
@@ -161,15 +155,15 @@
     return phrase;
   }
 
-  // Display lines
+  // Display
   const noteDisplay = document.getElementById("noteDisplay");
   let displayLines = { guitar: "", bass: "", drums: "" };
 
-  // Append phrase text with measure bars
   function appendPhraseToDisplay(guitarPhrase, bassPhrase, drumsPattern) {
     const measureLength = beatsPerMeasure;
     const phraseMeasures = measuresPerPhrase;
 
+    // Guitar and bass: show root letter or "-" for rest
     for (let i = 0; i < guitarPhrase.length; i++) {
       if (i > 0 && i % measureLength === 0) {
         displayLines.guitar += " | ";
@@ -179,15 +173,16 @@
       displayLines.bass += bassPhrase[i] ? bassPhrase[i][0] : "-";
     }
 
+    // Drums: show letters K, S, H per 16th note, grouped by measure bars every 16 sixteenths
     for (let i = 0; i < drumsPattern.length; i++) {
-      if (i > 0 && i % (measureLength * 2) === 0) {
+      if (i > 0 && i % (measureLength * 4) === 0) {
         displayLines.drums += " | ";
       }
       const step = drumsPattern[i];
       let d = "";
       if (step.kick) d += "K";
       if (step.snare) d += "S";
-      if (step.hiHat) d += "h";
+      if (step.hiHat) d += "H";
       displayLines.drums += d.padEnd(3, " ");
     }
 
@@ -202,11 +197,11 @@
   // Playback functions
   function playDrums(pattern, startTime) {
     for (let i = 0; i < pattern.length; i++) {
-      const time = startTime + i * Tone.Time("8n").toSeconds();
+      const time = startTime + i * Tone.Time("16n").toSeconds();
       const step = pattern[i];
       if (step.kick) kick.triggerAttackRelease("C2", "16n", time);
       if (step.snare) snare.triggerAttackRelease("16n", time + 0.01);
-      if (step.hiHat) hiHatClosed.triggerAttackRelease("16n", time + 0.005);
+      if (step.hiHat) hiHatClosed.triggerAttackRelease("32n", time + 0.005);
     }
   }
 
@@ -230,12 +225,16 @@
     }
   }
 
-  // Infinite loop setup
+  // Loop control
   let running = false;
   async function startLoop() {
     await Tone.start();
     running = true;
     let nextStart = Tone.now();
+
+    // Clear display lines on start
+    displayLines = { guitar: "", bass: "", drums: "" };
+    noteDisplay.textContent = "";
 
     while (running) {
       const guitarPhrase = generateGuitarPhrase();
@@ -248,14 +247,13 @@
       playBass(bassPhrase, nextStart);
       playDrums(drumsPattern, nextStart);
 
-      // Advance time by 4 measures (16 quarter notes)
+      // Move time forward 4 measures (16 quarter notes)
       nextStart += Tone.Time("1m").toSeconds() * measuresPerPhrase;
 
       await new Promise(r => setTimeout(r, 50));
     }
   }
 
-  // Buttons
   document.getElementById("startBtn").onclick = () => {
     if (!running) startLoop();
   };
