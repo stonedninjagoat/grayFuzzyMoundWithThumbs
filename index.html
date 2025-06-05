@@ -1,40 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Continuous Hardcore Punk Generator Fixed</title>
-<style>
-  body { background: #111; color: #eee; font-family: monospace; padding: 20px; }
-  #noteDisplay {
-    width: 95%; height: 300px; background: #222; border: 1px solid #444; padding: 10px;
-    overflow-y: scroll; white-space: pre-wrap; text-align: left; font-size: 14px;
-  }
-  button {
-    padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer;
-  }
-</style>
-</head>
+<head><meta charset="UTF-8" /><title>Random Section Hardcore Loop</title></head>
 <body>
-
-<h1>Hardcore Punk Generator - Continuous Loop & Drums Fixed</h1>
 <button id="startBtn">▶️ Start</button>
 <button id="stopBtn">⏸️ Stop</button>
-<div id="noteDisplay"></div>
+<pre id="noteDisplay" style="background:#222;color:#eee;padding:10px;height:300px;overflow-y:auto;"></pre>
 
 <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
 <script>
   Tone.Transport.bpm.value = 220;
   Tone.Transport.timeSignature = [4, 4];
 
-  // Notes
+  // Note utils (same as before)
   const minorPentatonicRoots = ["A", "C", "D", "E", "G"];
   const noteToMidi = { A: 57, C: 60, D: 62, E: 64, G: 67 };
   function midiToNoteName(midi) {
     const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    const note = notes[midi % 12];
-    const octave = Math.floor(midi / 12) - 1;
-    return note + octave;
+    return notes[midi % 12] + (Math.floor(midi / 12) - 1);
   }
   function powerChord(root) {
     const rootMidi = noteToMidi[root];
@@ -42,7 +24,7 @@
     return [midiToNoteName(rootMidi), midiToNoteName(fifthMidi)];
   }
 
-  // Synths
+  // Synths setup (same as before)
   const guitar = new Tone.PolySynth(Tone.MonoSynth, {
     oscillator: { type: "square" },
     envelope: { attack: 0.005, decay: 0.1, sustain: 0.2, release: 0.1 }
@@ -55,7 +37,6 @@
     volume: -8
   }).toDestination();
 
-  // Drums setup
   const kick = new Tone.MembraneSynth({
     pitchDecay: 0.01,
     octaves: 10,
@@ -80,157 +61,148 @@
   }).toDestination();
 
   // Constants
-  const measures = 4;
+  const measuresPerSection = 4;
   const beatsPerMeasure = 4;
   const sixteenthNotesPerMeasure = 16;
-  const totalSixteenths = measures * sixteenthNotesPerMeasure; // 64 steps
+  const stepsPerSection = measuresPerSection * sixteenthNotesPerMeasure; // 64
 
-  // Generate drum pattern array
-  function generateDrums() {
+  // Generate drum pattern (simple variations)
+  function generateDrumsPattern(type) {
+    // different patterns per type A, B, C, D
     const pattern = [];
-    for (let i = 0; i < totalSixteenths; i++) {
-      const kickHit = (i % 4 === 0 || i % 4 === 2); // Kick on 1 & 3 sixteenth beats of each beat for double kicks
-      const snareHit = (i % 16 === 4 || i % 16 === 12); // Snare on beats 2 and 4
-      const hiHatHit = true; // constant hi-hat
+    for(let i=0; i<stepsPerSection; i++) {
+      let kickHit=false, snareHit=false, hiHatHit=true;
+      if(type === "A") {
+        kickHit = (i % 4 === 0);
+        snareHit = (i % 16 === 8);
+      } else if(type === "B") {
+        kickHit = (i % 8 === 0);
+        snareHit = (i % 16 === 12);
+      } else if(type === "C") {
+        kickHit = (i % 4 === 0 || i % 4 === 2);
+        snareHit = (i % 16 === 4 || i % 16 === 12);
+      } else { // D or default
+        kickHit = (i % 3 === 0);
+        snareHit = (i % 16 === 10);
+      }
       pattern.push({ kick: kickHit, snare: snareHit, hiHat: hiHatHit });
     }
     return pattern;
   }
 
-  // Guitar phrase: chord per quarter note (one chord per beat)
-  function generateGuitarPhrase() {
+  // Generate guitar phrase (chord per quarter note)
+  function generateGuitarPhrase(type) {
     const phrase = [];
-    for (let i = 0; i < beatsPerMeasure * measures; i++) {
-      if (Math.random() < 0.9) {
-        const root = minorPentatonicRoots[Math.floor(Math.random() * minorPentatonicRoots.length)];
-        phrase.push(root);
+    for(let i=0; i<measuresPerSection*beatsPerMeasure; i++) {
+      if(type === "A") {
+        phrase.push(minorPentatonicRoots[i % minorPentatonicRoots.length]);
+      } else if(type === "B") {
+        phrase.push(minorPentatonicRoots[(i + 2) % minorPentatonicRoots.length]);
+      } else if(type === "C") {
+        phrase.push(minorPentatonicRoots[(i + 4) % minorPentatonicRoots.length]);
       } else {
-        phrase.push(null);
+        phrase.push(minorPentatonicRoots[(i + 1) % minorPentatonicRoots.length]);
       }
     }
     return phrase;
   }
 
-  // Bass phrase harmonizing guitar phrase
+  // Generate bass phrase harmonizing guitar phrase
   function generateBassPhrase(guitarPhrase) {
     const phrase = [];
-    for (let i = 0; i < guitarPhrase.length; i++) {
+    for(let i=0; i<guitarPhrase.length; i++) {
       const root = guitarPhrase[i];
-      if (!root) {
+      if(!root) {
         phrase.push(null);
       } else {
         const rootMidi = noteToMidi[root];
-        const choice = Math.random();
         let midiNote;
-        if (choice < 0.6) midiNote = rootMidi - 12; // octave below root
-        else if (choice < 0.85) midiNote = rootMidi - 12 + 7; // fifth below
-        else midiNote = rootMidi - 24; // two octaves below
+        const r = Math.random();
+        if(r < 0.6) midiNote = rootMidi - 12;
+        else if(r < 0.85) midiNote = rootMidi - 12 + 7;
+        else midiNote = rootMidi - 24;
         phrase.push(midiToNoteName(midiNote));
       }
     }
     return phrase;
   }
 
+  // Song sections dictionary
+  const sections = {};
+
+  // Pre-generate 4 sections A, B, C, D
+  ["A", "B", "C", "D"].forEach(s => {
+    const g = generateGuitarPhrase(s);
+    const b = generateBassPhrase(g);
+    const d = generateDrumsPattern(s);
+    sections[s] = { guitar: g, bass: b, drums: d };
+  });
+
+  // Common song form patterns
+  const formPatterns = [
+    ["A","B","A","B"],
+    ["A","B","C","D"],
+    ["A","A","B","B"],
+    ["A","B","C","C"]
+  ];
+
+  // Pick random form pattern
+  function pickRandomForm() {
+    return formPatterns[Math.floor(Math.random() * formPatterns.length)];
+  }
+
   // Display
   const noteDisplay = document.getElementById("noteDisplay");
-  let displayLines = { guitar: "", bass: "", drums: "" };
 
-  function appendPhraseToDisplay(guitarPhrase, bassPhrase, drumsPattern) {
-    const measureLength = beatsPerMeasure;
-    const phraseMeasures = measures;
-
-    // Guitar & Bass display - per beat
-    for (let i = 0; i < guitarPhrase.length; i++) {
-      if (i > 0 && i % measureLength === 0) {
-        displayLines.guitar += " | ";
-        displayLines.bass += " | ";
-      }
-      displayLines.guitar += guitarPhrase[i] ? guitarPhrase[i] : "-";
-      displayLines.bass += bassPhrase[i] ? bassPhrase[i][0] : "-";
-    }
-
-    // Drums display - per 16th note
-    for (let i = 0; i < drumsPattern.length; i++) {
-      if (i > 0 && i % sixteenthNotesPerMeasure === 0) {
-        displayLines.drums += " | ";
-      }
-      const step = drumsPattern[i];
-      let d = "";
-      if (step.kick) d += "K";
-      if (step.snare) d += "S";
-      if (step.hiHat) d += "H";
-      displayLines.drums += d.padEnd(3, " ");
-    }
-
-    noteDisplay.textContent =
-      "Guitar  : " + displayLines.guitar + "\n" +
-      "Bass    : " + displayLines.bass + "\n" +
-      "Drums   : " + displayLines.drums + "\n\n";
-
-    noteDisplay.scrollTop = noteDisplay.scrollHeight;
-  }
-
-  // Play functions for single step
-
-  // stepIndex is from 0 to totalSixteenths-1
-  function playDrumStep(stepIndex, pattern, time) {
-    const step = pattern[stepIndex];
-    if (!step) return;
-    if (step.kick) kick.triggerAttackRelease("C2", "16n", time);
-    if (step.snare) snare.triggerAttackRelease("16n", time + 0.001);
-    if (step.hiHat) hiHatClosed.triggerAttackRelease("32n", time + 0.001);
-  }
-
-  // Guitar plays once per quarter note (every 4 sixteenths)
-  // Calculate which chord to play on current step
-  function playGuitarStep(stepIndex, phrase, time) {
-    if (stepIndex % 4 === 0) {
-      const chordIndex = Math.floor(stepIndex / 4);
-      const root = phrase[chordIndex];
-      if (root) {
-        guitar.triggerAttackRelease(powerChord(root), "8n", time);
-      }
-    }
-  }
-
-  // Bass plays same as guitar, once per quarter note
-  function playBassStep(stepIndex, phrase, time) {
-    if (stepIndex % 4 === 0) {
-      const noteIndex = Math.floor(stepIndex / 4);
-      const note = phrase[noteIndex];
-      if (note) {
-        bass.triggerAttackRelease(note, "8n", time);
-      }
-    }
-  }
-
-  // State vars
+  // Playback state
   let currentStep = 0;
-  let guitarPhrase, bassPhrase, drumsPattern;
-  let loop;
+  let currentSectionIndex = 0;
+  let currentForm = [];
+  let loop = null;
 
   async function startLoop() {
     await Tone.start();
-    if (loop) return;
+    if(loop) return;
 
+    currentForm = pickRandomForm();
+    currentSectionIndex = 0;
     currentStep = 0;
-    displayLines = { guitar: "", bass: "", drums: "" };
-    noteDisplay.textContent = "";
 
-    guitarPhrase = generateGuitarPhrase();
-    bassPhrase = generateBassPhrase(guitarPhrase);
-    drumsPattern = generateDrums();
+    noteDisplay.textContent = `Form pattern: ${currentForm.join(" ")}\n\n`;
 
-    appendPhraseToDisplay(guitarPhrase, bassPhrase, drumsPattern);
-
-    // Loop runs every 16th note, each time triggering one step of pattern
     loop = new Tone.Loop((time) => {
-      playDrumStep(currentStep, drumsPattern, time);
-      playGuitarStep(currentStep, guitarPhrase, time);
-      playBassStep(currentStep, bassPhrase, time);
+      const currentSectionName = currentForm[currentSectionIndex];
+      const sec = sections[currentSectionName];
+      if (!sec) return;
+
+      // Play instruments at current step
+      // Drums on every 16th
+      const stepInSection = currentStep % stepsPerSection;
+      if(stepInSection % 4 === 0) {
+        // Guitar & bass once per quarter note
+        const chordIndex = Math.floor(stepInSection / 4);
+        const gRoot = sec.guitar[chordIndex];
+        const bNote = sec.bass[chordIndex];
+        if(gRoot) guitar.triggerAttackRelease(powerChord(gRoot), "8n", time);
+        if(bNote) bass.triggerAttackRelease(bNote, "8n", time);
+      }
+      // Drums every 16th
+      const drumStep = sec.drums[stepInSection];
+      if(drumStep.kick) kick.triggerAttackRelease("C2", "16n", time);
+      if(drumStep.snare) snare.triggerAttackRelease("16n", time + 0.001);
+      if(drumStep.hiHat) hiHatClosed.triggerAttackRelease("32n", time + 0.001);
 
       currentStep++;
-      if (currentStep >= totalSixteenths) currentStep = 0; // loop forever
+      if(currentStep >= stepsPerSection) {
+        currentStep = 0;
+        currentSectionIndex++;
+        if(currentSectionIndex >= currentForm.length) {
+          // pick a new random form for endless variation
+          currentForm = pickRandomForm();
+          noteDisplay.textContent += `\nNew form pattern: ${currentForm.join(" ")}\n\n`;
+          currentSectionIndex = 0;
+        }
+      }
     }, "16n");
 
     Tone.Transport.start();
@@ -238,19 +210,17 @@
   }
 
   function stopLoop() {
-    if (loop) {
+    if(loop) {
       loop.stop();
       loop.cancel();
       loop = null;
     }
     Tone.Transport.stop();
-    displayLines = { guitar: "", bass: "", drums: "" };
     noteDisplay.textContent = "";
   }
 
   document.getElementById("startBtn").onclick = startLoop;
   document.getElementById("stopBtn").onclick = stopLoop;
 </script>
-
 </body>
 </html>
