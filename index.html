@@ -18,50 +18,96 @@
       min-height: 100px;
       border: 1px solid #ccc;
       margin: 20px auto;
-      width: 200px;
+      width: 300px;
       background: white;
       padding: 10px;
       font-size: 24px;
       line-height: 1.5;
+    }
+    select, input[type=range] {
+      margin: 10px;
+      padding: 5px;
     }
   </style>
 </head>
 <body>
   <h1>🎵 Music Randomizer</h1>
 
+  <label for="scaleSelect">Scale:</label>
+  <select id="scaleSelect">
+    <option value="major">Major</option>
+    <option value="minor">Minor</option>
+    <option value="majPent">Major Pentatonic</option>
+    <option value="minPent">Minor Pentatonic</option>
+    <option value="chromatic">Chromatic</option>
+  </select>
+
+  <label for="chaosRange">Beat Chaos:</label>
+  <input type="range" id="chaosRange" min="0" max="2" step="1">
+
   <div id="noteDisplay">Jianpu: </div>
 
   <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/midiwriter-js@2.1.0/dist/MidiWriter.min.js"></script>
   <script>
-    // Two octaves of C major
-    const selectedNotes = [
-      "C4", "D4", "E4", "F4", "G4", "A4", "B4",
-      "C5", "D5", "E5", "F5", "G5", "A5", "B5"
-    ];
+    const scalePatterns = {
+      major: [0, 2, 4, 5, 7, 9, 11],
+      minor: [0, 2, 3, 5, 7, 8, 10],
+      majPent: [0, 2, 4, 7, 9],
+      minPent: [0, 3, 5, 7, 10],
+      chromatic: Array.from({ length: 12 }, (_, i) => i)
+    };
 
-    const jianpuMap = {
-      "C4": "1", "D4": "2", "E4": "3", "F4": "4", "G4": "5", "A4": "6", "B4": "7",
-      "C5": "1'", "D5": "2'", "E5": "3'", "F5": "4'", "G5": "5'", "A5": "6'", "B5": "7'"
+    const jianpuMap = ["1", "2", "3", "4", "5", "6", "7"];
+
+    const getScaleNotes = (base = "C4", pattern = scalePatterns.major) => {
+      const baseMidi = Tone.Frequency(base).toMidi();
+      const notes = [];
+      for (let octave = 0; octave < 2; octave++) {
+        for (let interval of pattern) {
+          notes.push(Tone.Frequency(baseMidi + interval + octave * 12, "midi").toNote());
+        }
+      }
+      return notes;
+    };
+
+    const getRandomDuration = (chaosLevel) => {
+      if (chaosLevel === 0) return "4n";
+      if (chaosLevel === 1) return ["4n", "8n", "16n"][Math.floor(Math.random() * 3)];
+      return ["4n", "8n", "16n", "8t", "4t", "4n.", "16t"][Math.floor(Math.random() * 7)];
     };
 
     const noteDisplay = document.getElementById('noteDisplay');
+    const scaleSelect = document.getElementById('scaleSelect');
+    const chaosRange = document.getElementById('chaosRange');
+
     let synth = new Tone.Synth().toDestination();
+    let currentNotes = getScaleNotes();
 
     function playRandomNote(time) {
-      const note = selectedNotes[Math.floor(Math.random() * selectedNotes.length)];
-      synth.triggerAttackRelease(note, "8n", time);
-      noteDisplay.innerHTML += `${jianpuMap[note]} `;
+      const chaosLevel = parseInt(chaosRange.value);
+      const note = currentNotes[Math.floor(Math.random() * currentNotes.length)];
+      const midi = Tone.Frequency(note).toMidi() % 12;
+      const jianpu = jianpuMap[midi % 7] || "?";
+      const dur = getRandomDuration(chaosLevel);
+      synth.triggerAttackRelease(note, dur, time);
+      noteDisplay.innerHTML += `${jianpu} `;
+      Tone.Transport.scheduleOnce(playRandomNote, `+${dur}`);
     }
 
     async function startAutomaticPlayback() {
-      await Tone.start(); // ensure audio context is started on user gesture
-      Tone.Transport.scheduleRepeat(playRandomNote, "8n");
+      await Tone.start();
+      Tone.Transport.cancel();
+      Tone.Transport.scheduleOnce(playRandomNote, 0);
       Tone.Transport.start();
     }
 
-    // Auto-start on load
+    scaleSelect.addEventListener('change', () => {
+      const selected = scaleSelect.value;
+      currentNotes = getScaleNotes("C4", scalePatterns[selected]);
+    });
+
     window.addEventListener('load', () => {
+      currentNotes = getScaleNotes("C4", scalePatterns[scaleSelect.value]);
       startAutomaticPlayback();
     });
   </script>
