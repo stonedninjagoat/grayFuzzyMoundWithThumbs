@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Hardcore Punk Generator</title>
   <style>
     body {
@@ -23,10 +23,12 @@
       overflow-y: scroll;
       white-space: pre-wrap;
       text-align: left;
+      margin: 0 auto 20px auto;
+      max-width: 600px;
     }
     button {
       margin: 10px;
-      padding: 10px;
+      padding: 10px 20px;
       font-size: 16px;
       background: lime;
       color: black;
@@ -43,7 +45,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
   <script>
-    // POWER CHORDS
+    // Power chords defined as pairs of notes (root + perfect fifth)
     const powerChords = {
       "C": ["C4", "G4"],
       "D": ["D4", "A4"],
@@ -54,23 +56,23 @@
       "B": ["B3", "F#4"]
     };
     const roots = Object.keys(powerChords);
-    const durations = ["16n", "8n"]; // fast and aggressive
+    const durations = ["16n", "8n"];
     const getDurationMs = dur => (dur === "16n" ? 125 : 250);
 
-    // GUITAR: distortion
-    const guitar = new Tone.MonoSynth({
+    // PolySynth for guitar (can play chords)
+    const guitar = new Tone.PolySynth(Tone.MonoSynth, {
       oscillator: { type: "square" },
       envelope: { attack: 0.005, decay: 0.2, sustain: 0.1, release: 0.2 }
-    }).connect(new Tone.Distortion(0.7)).toDestination();
+    }).chain(new Tone.Distortion(0.7), Tone.Destination);
 
-    // BASS: fat low-end
+    // Bass synth
     const bass = new Tone.MonoSynth({
       oscillator: { type: "sawtooth" },
-      filter: { type: "lowpass", frequency: 100 },
+      filter: { type: "lowpass", frequency: 120 },
       envelope: { attack: 0.01, decay: 0.3, sustain: 0.2, release: 0.3 }
-    }).connect(new Tone.FeedbackDelay("8n", 0.2)).toDestination();
+    }).toDestination();
 
-    // DRUMS: rock/metal
+    // Drums sampler
     const drums = new Tone.Sampler({
       urls: {
         "C1": "kick.mp3",
@@ -78,6 +80,8 @@
         "E1": "hihat.mp3"
       },
       baseUrl: "https://tonejs.github.io/audio/drum-samples/CR78/",
+      onload: () => console.log("Drums loaded"),
+      onerror: (e) => console.error("Drum load error", e)
     }).toDestination();
 
     // Display
@@ -93,36 +97,41 @@
 
       while (running) {
         const now = Tone.now();
+
+        // Random root and duration
         const root = roots[Math.floor(Math.random() * roots.length)];
         const chord = powerChords[root];
         const duration = durations[Math.floor(Math.random() * durations.length)];
 
-        // Play guitar (power chord)
-        guitar.triggerAttackRelease(chord[0], duration, now);
-        guitar.triggerAttackRelease(chord[1], duration, now);
+        // Play guitar chord (both notes at once)
+        guitar.triggerAttackRelease(chord, duration, now);
 
-        // Play bass (root, octave down)
+        // Play bass root note one octave lower (e.g. C2)
         const bassNote = root + "2";
         bass.triggerAttackRelease(bassNote, duration, now);
 
-        // Play drums: punk blast pattern
-        drums.triggerAttackRelease("C1", "16n", now);      // kick
-        drums.triggerAttackRelease("E1", "16n", now + 0.05); // hat
-        drums.triggerAttackRelease("D1", "16n", now + 0.1);  // snare
+        // Drum pattern (kick, hat, snare) with fast offsets
+        drums.triggerAttackRelease("C1", "16n", now);          // kick
+        drums.triggerAttackRelease("E1", "16n", now + 0.05);   // hi-hat
+        drums.triggerAttackRelease("D1", "16n", now + 0.1);    // snare
 
-        // Display
+        // Update display
         lineGuitar.push(pad(root + "5"));
         lineBass.push(pad(root + "2"));
         lineDrums.push(pad("K-H-S"));
 
-        noteDisplay.textContent = `🎸 GUITAR:\n${lineGuitar.join("")}\n🎸 BASS:\n${lineBass.join("")}\n🥁 DRUMS:\n${lineDrums.join("")}`;
+        noteDisplay.textContent = 
+          `🎸 GUITAR:\n${lineGuitar.join("")}\n\n🎸 BASS:\n${lineBass.join("")}\n\n🥁 DRUMS:\n${lineDrums.join("")}`;
 
         await new Promise(r => setTimeout(r, getDurationMs(duration)));
       }
     }
 
-    document.getElementById("startBtn").onclick = () => {
-      if (!running) punkLoop();
+    document.getElementById("startBtn").onclick = async () => {
+      if (!running) {
+        await Tone.start();  // Unlock audio context
+        punkLoop();
+      }
     };
     document.getElementById("stopBtn").onclick = () => {
       running = false;
