@@ -2,155 +2,115 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Post-Hardcore Jam with Jianpu</title>
+<title>Post-Hardcore Jam - Full Setup</title>
 <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.min.js"></script>
 <style>
-  body {
-    background: #121212; color: #eee;
-    font-family: Arial, sans-serif;
-    padding: 20px;
-  }
-  #jianpuOutput {
-    font-size: 2em;
-    margin-bottom: 20px;
-    font-weight: bold;
-    letter-spacing: 0.4em;
-  }
-  button {
-    font-size: 1.4em;
-    padding: 12px 25px;
-    cursor: pointer;
-    background: #333;
-    border: none;
-    border-radius: 8px;
-    color: #eee;
-  }
-  button:hover {
-    background: #555;
-  }
+  body { background: #111; color: #eee; font-family: Arial, sans-serif; padding: 2rem; }
+  #jianpuOutput { font-size: 2rem; margin-bottom: 1rem; }
+  button { font-size: 1.3rem; padding: 1rem 2rem; cursor: pointer; border-radius: 6px; background: #333; color: #eee; border: none; }
+  button:hover { background: #555; }
 </style>
 </head>
 <body>
 
-<h1>Post-Hardcore Hardcore Jam + Jianpu Output</h1>
-<div id="jianpuOutput">Press Start to play Jianpu + Jam</div>
+<h1>Post-Hardcore Jam with Jianpu</h1>
+<div id="jianpuOutput">Press Start to begin</div>
 <button id="startBtn">Start Jam</button>
 
 <script>
   const startBtn = document.getElementById('startBtn');
   const jianpuOutput = document.getElementById('jianpuOutput');
 
-  // Jianpu number map (C=1 to B=7)
-  const JianpuMap = { C: '1', D: '2', E: '3', F: '4', G: '5', A: '6', B: '7' };
+  // Jianpu map for roots
+  const JianpuMap = { A:'6', B:'7', C:'1', D:'2', E:'3', F:'4', G:'5' };
 
-  const rootNoteMap = {
-    A: "A3", B: "B3", C: "C4", D: "D4", E: "E4", F: "F4", G: "G4"
-  };
-
-  // Chord intervals (power chords and triads)
-  const chordMap = {
-    A: [0, 7],
-    B: [0, 4, 7],
-    C: [0, 3, 7],
-    D: [0, 4, 7],
-    E: [0, 7],
-    F: [0, 3, 7],
-    G: [0, 4, 7]
-  };
-
-  const progressionPatterns = [
+  // Chord progression patterns
+  const progressions = [
     ['A', 'B', 'A', 'B'],
-    ['A', 'A', 'B', 'B'],
-    ['A', 'B', 'C', 'D'],
-    ['A', 'B', 'C', 'C'],
-    ['A', 'B', 'C', 'B'],
-    ['A', 'C', 'B', 'D'],
+    ['C', 'D', 'E', 'F'],
+    ['G', 'A', 'B', 'C'],
     ['E', 'F', 'G', 'A'],
-    ['C', 'D', 'E', 'F']
+    ['A', 'C', 'B', 'D']
   ];
 
-  // Setup instruments
-  const guitarSynth = new Tone.PolySynth(Tone.Synth, {
-    oscillator: { type: "sawtooth" },
-    envelope: { attack: 0.01, decay: 0.15, sustain: 0.3, release: 0.6 }
-  });
-  const distortion = new Tone.Distortion(0.8).toDestination();
-  guitarSynth.connect(distortion);
-
-  const bassSynth = new Tone.MonoSynth({
-    oscillator: { type: "square" },
-    filter: { Q: 2, type: "lowpass", rolloff: -24 },
-    envelope: { attack: 0.01, decay: 0.1, sustain: 0.7, release: 0.8 },
-    filterEnvelope: { attack: 0.001, decay: 0.01, sustain: 0.7, release: 0.8, baseFrequency: 200, octaves: 2.6 }
-  }).toDestination();
-
-  const drumKit = new Tone.Players({
+  // Load drum samples
+  const drums = new Tone.Players({
     kick: "https://tonejs.github.io/audio/drum-samples/breakbeat/kick.mp3",
     snare: "https://tonejs.github.io/audio/drum-samples/breakbeat/snare.mp3",
     hihat: "https://tonejs.github.io/audio/drum-samples/breakbeat/hihat.mp3"
   }).toDestination();
 
-  const vocalLead = new Tone.Synth({
+  // Guitar sampler - simple distorted power chord sounds
+  const guitar = new Tone.Sampler({
+    urls: {
+      A3: "A3.mp3",
+      B3: "B3.mp3",
+      C4: "C4.mp3",
+      D4: "D4.mp3",
+      E4: "E4.mp3",
+      F4: "F4.mp3",
+      G4: "G4.mp3",
+    },
+    baseUrl: "https://tonejs.github.io/audio/salamander/",
+    onload: () => console.log("Guitar loaded")
+  }).chain(new Tone.Distortion(0.8), Tone.Destination);
+
+  // Bass sampler
+  const bass = new Tone.Sampler({
+    urls: {
+      A2: "A2.mp3",
+      B2: "B2.mp3",
+      C3: "C3.mp3",
+      D3: "D3.mp3",
+      E3: "E3.mp3",
+      F3: "F3.mp3",
+      G2: "G2.mp3",
+    },
+    baseUrl: "https://tonejs.github.io/audio/salamander/",
+    onload: () => console.log("Bass loaded")
+  }).toDestination();
+
+  // Vocal synth
+  const vocal = new Tone.Synth({
     oscillator: { type: "sine" },
-    envelope: { attack: 0.05, decay: 0.2, sustain: 0.4, release: 0.6 }
-  });
-  const reverb = new Tone.Reverb({ decay: 2, wet: 0.15 }).toDestination();
-  vocalLead.connect(reverb);
+    envelope: { attack: 0.05, decay: 0.2, sustain: 0.3, release: 0.5 }
+  }).toDestination();
 
-  // Helpers to convert notes
-  function noteToMidi(note) {
-    const noteRegex = /^([A-G])(#|b)?(\d)$/;
-    const noteBase = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
-    const m = note.match(noteRegex);
-    if (!m) return null;
-    let [_, letter, accidental, octave] = m;
-    let midi = noteBase[letter] + 12 * (parseInt(octave) + 1);
-    if (accidental === "#") midi += 1;
-    else if (accidental === "b") midi -= 1;
-    return midi;
-  }
+  // Chord notes map for power chords (root + fifth)
+  const chordIntervals = [0, 7]; // semitones intervals for power chord
 
+  // Convert root note letter to MIDI number for sample playback
+  const noteToMidi = {
+    A: 57, B: 59, C: 60, D: 62, E: 64, F: 65, G: 67
+  };
+
+  // Convert MIDI back to note name
   function midiToNoteName(midi) {
-    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    const octave = Math.floor(midi / 12) - 1;
-    const note = notes[midi % 12];
-    return note + octave;
+    const notes = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    return notes[midi % 12] + Math.floor(midi / 12 - 1);
   }
 
-  function playChord(chordLetter, time) {
-    const root = rootNoteMap[chordLetter];
-    if (!root) return;
-    const rootMidi = noteToMidi(root);
-    const intervals = chordMap[chordLetter] || [0, 7];
-    const notes = intervals.map(i => midiToNoteName(rootMidi + i));
-    guitarSynth.triggerAttackRelease(notes, "2n", time);
+  // Play power chord (root + fifth)
+  function playPowerChord(rootLetter, time) {
+    const rootMidi = noteToMidi[rootLetter];
+    if (rootMidi === undefined) return;
+    const notes = chordIntervals.map(i => midiToNoteName(rootMidi + i));
+    notes.forEach(note => {
+      guitar.triggerAttackRelease(note, "2n", time);
+    });
   }
 
-  function playBass(chordLetter, time) {
-    const root = rootNoteMap[chordLetter];
-    if (!root) return;
-    const rootMidi = noteToMidi(root);
-    const octaveNote = midiToNoteName(rootMidi + 12);
-    bassSynth.triggerAttackRelease([root, octaveNote], "2n", time);
+  // Play bass note one octave below root
+  function playBassNote(rootLetter, time) {
+    const rootMidi = noteToMidi[rootLetter];
+    if (rootMidi === undefined) return;
+    const bassNote = midiToNoteName(rootMidi - 12);
+    bass.triggerAttackRelease(bassNote, "2n", time);
   }
 
-  function scheduleDrums(startTime) {
-    // Kick on beats 1 and 3
-    drumKit.player("kick").start(startTime);
-    drumKit.player("kick").start(startTime + Tone.Time("2n").toSeconds());
-
-    // Snare on beats 2 and 4
-    drumKit.player("snare").start(startTime + Tone.Time("4n").toSeconds());
-    drumKit.player("snare").start(startTime + Tone.Time("4n").toSeconds() * 3);
-
-    // Hi-hat 8th notes
-    for (let i = 0; i < 8; i++) {
-      drumKit.player("hihat").start(startTime + i * Tone.Time("8n").toSeconds());
-    }
-  }
-
-  function generateVocalMelody(chords) {
-    const scaleNotes = {
+  // Play vocal melody (simple scale)
+  function playVocalNote(rootLetter, time) {
+    const scale = {
       A: ["A4", "C5", "E5"],
       B: ["B4", "D5", "F#5"],
       C: ["C5", "E5", "G5"],
@@ -159,48 +119,64 @@
       F: ["F5", "A5", "C6"],
       G: ["G4", "B4", "D5"]
     };
-    let melody = [];
-    for (let c of chords) {
-      const choices = scaleNotes[c] || ["C5"];
-      melody.push(choices[Math.floor(Math.random() * choices.length)]);
-    }
-    return melody;
+    const notes = scale[rootLetter] || ["C5"];
+    const note = notes[Math.floor(Math.random() * notes.length)];
+    vocal.triggerAttackRelease(note, "8n", time);
   }
 
-  function playMeasure(chordSequence, startTime) {
-    for (let i = 0; i < chordSequence.length; i++) {
-      const chordLetter = chordSequence[i];
-      const time = startTime + i * Tone.Time("4n").toSeconds();
-      playChord(chordLetter, time);
-      playBass(chordLetter, time);
-    }
-    scheduleDrums(startTime);
+  // Drum pattern scheduler for 1 measure (4/4)
+  function scheduleDrums(time) {
+    // Kick on beats 1 & 3
+    drums.player("kick").start(time);
+    drums.player("kick").start(time + Tone.Time("2n").toSeconds());
 
-    const vocalMelody = generateVocalMelody(chordSequence);
-    for (let i = 0; i < vocalMelody.length; i++) {
-      const vocalTime = startTime + i * Tone.Time("4n").toSeconds() + 0.05;
-      vocalLead.triggerAttackRelease(vocalMelody[i], "8n", vocalTime);
-    }
+    // Snare on beats 2 & 4
+    drums.player("snare").start(time + Tone.Time("4n").toSeconds());
+    drums.player("snare").start(time + Tone.Time("4n").toSeconds() * 3);
 
-    // Update Jianpu notation live
-    let jianpuStr = chordSequence.map(ch => JianpuMap[ch] || "?").join(" ");
-    jianpuOutput.textContent = `Jianpu: ${jianpuStr}`;
+    // Hi-hat on every 8th note
+    for(let i=0; i<8; i++) {
+      drums.player("hihat").start(time + i * Tone.Time("8n").toSeconds());
+    }
   }
 
+  // Main loop variables
   let currentMeasure = 0;
-  let currentPattern = progressionPatterns[0];
+  let currentProgression = progressions[0];
 
+  // Schedule one measure of chords + bass + vocals + drums
+  function playMeasure(time) {
+    // Pick new progression every 4 measures
+    if(currentMeasure % 4 === 0) {
+      currentProgression = progressions[Math.floor(Math.random() * progressions.length)];
+    }
+
+    // Play chords, bass, vocals on quarter notes
+    currentProgression.forEach((chord, idx) => {
+      let noteTime = time + Tone.Time("4n").toSeconds() * idx;
+      playPowerChord(chord, noteTime);
+      playBassNote(chord, noteTime);
+      playVocalNote(chord, noteTime + 0.1);
+    });
+
+    // Schedule drums for this measure
+    scheduleDrums(time);
+
+    // Update Jianpu display
+    const jianpuStr = currentProgression.map(ch => JianpuMap[ch] || "?").join(" ");
+    jianpuOutput.textContent = "Jianpu: " + jianpuStr;
+
+    currentMeasure++;
+  }
+
+  // Start Tone Transport and schedule loop
   function startJam() {
-    Tone.Transport.bpm.value = 200;
-    Tone.Transport.start();
-
-    Tone.Transport.scheduleRepeat(time => {
-      if (currentMeasure % 4 === 0) {
-        currentPattern = progressionPatterns[Math.floor(Math.random() * progressionPatterns.length)];
-      }
-      playMeasure(currentPattern, time);
-      currentMeasure++;
+    Tone.Transport.bpm.value = 220;
+    Tone.Transport.scheduleRepeat((time) => {
+      playMeasure(time);
     }, "1m");
+
+    Tone.Transport.start();
   }
 
   startBtn.onclick = async () => {
