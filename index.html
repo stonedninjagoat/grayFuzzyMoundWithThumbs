@@ -2,96 +2,80 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Random Major7 Chords + Jianpu + Drums</title>
+<title>Major7 Guitar Dyads + Bass + Drums + Jianpu Output</title>
 <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.min.js"></script>
 <style>
-  body { background:#111; color:#eee; font-family: monospace; padding: 1rem; }
-  #output { white-space: pre-wrap; font-size: 1.3rem; }
-  button { font-size: 1.2rem; margin-top: 1rem; padding: 0.7rem 1.5rem; cursor: pointer; border-radius: 6px; border:none; background:#333; color:#eee; }
+  body { background:#121212; color:#eee; font-family: monospace; padding:1rem; }
+  #output { white-space: pre-wrap; font-size:1.2rem; margin-top:1rem; }
+  button { font-size:1.2rem; padding:0.6rem 1.4rem; margin-top:1rem; border:none; border-radius:5px; cursor:pointer; background:#333; color:#eee; }
   button:hover { background:#555; }
 </style>
 </head>
 <body>
 
-<h2>Random Major7 Guitar + Jianpu + Drums</h2>
+<h2>Major7 Guitar Dyads + Bass + Drums + Jianpu Output</h2>
 <button id="start">Start Jam</button>
 
-<div id="output">
+<pre id="output">
 Guitar Jianpu: -  
 Bass Jianpu: -  
 Drums Track1 (HiHat): -  
 Drums Track2 (Kick/Snare): -
-</div>
+</pre>
 
 <script>
 const JianpuMap = { 'C': '1', 'D': '2', 'E': '3', 'F': '4', 'G': '5', 'A': '6', 'B': '7' };
-
-// Major7 intervals in semitones relative to root
 const major7Intervals = [0,4,7,11];
-
-// Notes for root selection (C major scale)
 const roots = ['C','D','E','F','G','A','B'];
 
-// Drum patterns for 8 eighth notes
+// Drum patterns: 8 eighth notes per measure
 const drumPatterns = {
   hihat: ['open', 'close', 'close', 'open', 'close', 'close', 'close', 'open'],
   kick:  [1,0,0,0,1,0,0,0],
   snare: [0,0,1,0,0,0,1,0]
 };
 
-// Utility: convert root + interval to note letter only (C,B etc)
+// Convert root + interval to note letter (simplified, no sharps)
 function noteFromRoot(root, interval) {
-  // MIDI note numbers for C4=60
   const midiMap = { C: 60, D: 62, E: 64, F: 65, G: 67, A: 69, B: 71 };
   let midi = midiMap[root] + interval;
-  // Convert midi back to note letter (simplified, ignoring sharps)
   const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
   let note = noteNames[midi % 12];
   if(note.includes('#')) {
-    // For simplicity, just convert sharps down one semitone
+    // Convert sharps to flats (down one semitone)
     let altMidi = midi - 1;
     note = noteNames[altMidi % 12];
   }
-  return note[0]; // just letter
+  return note[0];
 }
 
-// Generate random pairs of notes from Major7 chord
+// Generate all unique pairs of notes from Major7 chord
 function generateMaj7Pairs(root) {
-  // get chord notes (letters only)
   const chordNotes = major7Intervals.map(i => noteFromRoot(root, i));
-  
-  // possible pairs (unique pairs of 2 from 4 notes)
   let pairs = [];
   for(let i=0; i<chordNotes.length; i++) {
     for(let j=i+1; j<chordNotes.length; j++) {
       pairs.push([chordNotes[i], chordNotes[j]]);
     }
   }
-  
-  // shuffle pairs randomly
+  // Shuffle pairs randomly each time called
   pairs.sort(() => Math.random() - 0.5);
-  
-  // pick 3 pairs for the measure (like your example)
-  return pairs.slice(0,3);
+  return pairs;
 }
 
-// Jianpu output for pairs (space separated)
+// Jianpu output for pairs
 function pairsToJianpu(pairs) {
-  return pairs.map(pair => {
-    return pair.map(note => JianpuMap[note] || '?').join(' ');
-  }).join('\n');
+  return pairs.map(pair => pair.map(note => JianpuMap[note]||'?').join(' ')).join('\n');
 }
 
-// Jianpu output for drums track 1 (hihat)
 function drumTrack1Jianpu() {
   return drumPatterns.hihat.map(h => h === 'open' ? '◯' : 'x').join('');
 }
 
-// Jianpu output for drums track 2 (kick + snare)
 function drumTrack2Jianpu() {
   let result = '';
   for(let i=0; i<8; i++) {
-    if(drumPatterns.kick[i] && drumPatterns.snare[i]) result += '◎'; // both kick+snare
+    if(drumPatterns.kick[i] && drumPatterns.snare[i]) result += '◎';
     else if(drumPatterns.kick[i]) result += '●';
     else if(drumPatterns.snare[i]) result += '○';
     else result += '·';
@@ -99,7 +83,6 @@ function drumTrack2Jianpu() {
   return result;
 }
 
-// Simple random chord progression section pattern (e.g. ABAB)
 const sectionPatterns = [
   ['A','B','A','B'],
   ['A','A','B','B'],
@@ -107,20 +90,17 @@ const sectionPatterns = [
   ['A','B','C','C']
 ];
 
-// For each section letter assign random root chord
 let sectionRoots = {};
-
-// Initialize random chords for sections
 function randomizeSectionRoots() {
   sectionRoots = {};
-  ['A','B','C','D'].forEach(sec => {
-    sectionRoots[sec] = roots[Math.floor(Math.random()*roots.length)];
+  ['A','B','C','D'].forEach(s => {
+    sectionRoots[s] = roots[Math.floor(Math.random()*roots.length)];
   });
 }
 
-let measureCount = 0;
 let currentPattern = [];
 let currentSectionIndex = 0;
+let measureCount = 0;
 
 function choosePattern() {
   currentPattern = sectionPatterns[Math.floor(Math.random()*sectionPatterns.length)];
@@ -128,17 +108,107 @@ function choosePattern() {
   randomizeSectionRoots();
 }
 
+// Tone.js Synth setup
+const guitarSynth = new Tone.PolySynth(Tone.Synth, {
+  oscillator: { type: 'square' },
+  envelope: { attack: 0.01, decay: 0.1, sustain: 0.4, release: 0.1 }
+}).toDestination();
+
+const bassSynth = new Tone.MonoSynth({
+  oscillator: { type: 'sawtooth' },
+  filter: { Q: 2, type: 'lowpass', rolloff: -24 },
+  envelope: { attack: 0.01, decay: 0.3, sustain: 0.5, release: 0.3 },
+  filterEnvelope: { attack: 0.001, decay: 0.01, sustain: 0.5, release: 0.01, baseFrequency: 200, octaves: 2.6 }
+}).toDestination();
+
+const drumKick = new Tone.MembraneSynth({
+  pitchDecay: 0.05,
+  octaves: 10,
+  envelope: { attack: 0.001, decay: 0.2, sustain: 0 },
+  volume: -8
+}).toDestination();
+
+const drumSnare = new Tone.NoiseSynth({
+  noise: { type: 'white' },
+  envelope: { attack: 0.001, decay: 0.15, sustain: 0 },
+  volume: -12
+}).toDestination();
+
+const drumHiHat = new Tone.MetalSynth({
+  frequency: 4000,
+  envelope: { attack: 0.001, decay: 0.1, release: 0.01 },
+  harmonicity: 5.1,
+  modulationIndex: 32,
+  resonance: 4000,
+  octaves: 1.5,
+  volume: -15
+}).toDestination();
+
+// Play a dyad (two notes) for guitar, in octave 4
+function playGuitarDyad(notes) {
+  // Map note letters to MIDI note names with octave 4
+  const octave = 4;
+  const midiNotes = notes.map(n => n + octave);
+  guitarSynth.triggerAttackRelease(midiNotes, '8n');
+}
+
+// Play bass root note octave 2 or 3 (to sound lower)
+function playBassNote(root) {
+  const octave = 2;
+  const midiNote = root + octave;
+  bassSynth.triggerAttackRelease(midiNote, '4n');
+}
+
+// Schedule drum pattern (8 eighth notes) on Tone.Transport position (0 to 7)
+function scheduleDrums(startMeasure) {
+  for(let i=0; i<8; i++) {
+    let time = `${startMeasure}m + ${i*0.5}n`;
+    if(drumPatterns.kick[i]) {
+      Tone.Transport.scheduleOnce(() => drumKick.triggerAttackRelease('C2', '8n'), time);
+    }
+    if(drumPatterns.snare[i]) {
+      Tone.Transport.scheduleOnce(() => drumSnare.triggerAttackRelease('16n'), time);
+    }
+    if(drumPatterns.hihat[i] === 'open') {
+      Tone.Transport.scheduleOnce(() => drumHiHat.triggerAttackRelease('16n'), time);
+    } else if(drumPatterns.hihat[i] === 'close') {
+      Tone.Transport.scheduleOnce(() => drumHiHat.triggerAttackRelease('32n'), time);
+    }
+  }
+}
+
+let guitarPairs = [];
+let currentDyadIndex = 0;
+
 function playMeasure(time) {
   if(measureCount % 4 === 0) {
     choosePattern();
   }
   const section = currentPattern[currentSectionIndex];
   const root = sectionRoots[section];
+  guitarPairs = generateMaj7Pairs(root);
+  currentDyadIndex = 0;
 
-  // Guitar pairs
-  const guitarPairs = generateMaj7Pairs(root);
+  // Play bass root at measure start
+  playBassNote(root);
 
-  // Output Jianpu
+  // Schedule guitar dyads every 2 eighth notes (quarter notes) inside measure
+  for(let i=0; i<4; i++) {
+    let playTime = `+${i * 0.5}n`; // every 0.5 quarter notes = 8th notes
+    Tone.Transport.scheduleOnce(() => {
+      const dyad = guitarPairs[currentDyadIndex % guitarPairs.length];
+      // Convert dyad note letters to note names with octave for synth
+      const octave = 4;
+      const notesToPlay = dyad.map(n => n + octave);
+      guitarSynth.triggerAttackRelease(notesToPlay, '8n');
+      currentDyadIndex++;
+    }, `${time} + ${i * 0.5}n`);
+  }
+
+  // Schedule drums for this measure
+  scheduleDrums(measureCount);
+
+  // Update Jianpu output immediately
   document.getElementById('output').textContent = 
 `Guitar Jianpu:
 ${pairsToJianpu(guitarPairs)}
@@ -156,16 +226,13 @@ ${drumTrack2Jianpu()}`;
   currentSectionIndex = (currentSectionIndex + 1) % currentPattern.length;
 }
 
-function startJam() {
-  Tone.Transport.bpm.value = 200;
-  Tone.Transport.scheduleRepeat(playMeasure, '1m');
-  Tone.Transport.start();
-}
-
 document.getElementById('start').onclick = async () => {
   await Tone.start();
+  measureCount = 0;
   choosePattern();
-  startJam();
+  Tone.Transport.bpm.value = 220; // hardcore speed
+  Tone.Transport.scheduleRepeat(playMeasure, '1m');
+  Tone.Transport.start();
   document.getElementById('start').disabled = true;
   document.getElementById('start').textContent = 'Playing...';
 };
