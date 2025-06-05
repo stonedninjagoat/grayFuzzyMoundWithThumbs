@@ -21,7 +21,7 @@
       margin: 10px auto;
       background: white;
       padding: 10px;
-      font-size: 14px;
+      font-size: 12px;
       overflow-y: scroll;
       white-space: pre-wrap;
       text-align: left;
@@ -45,29 +45,22 @@
     const getCMajorNotes = () => {
       const scale = ["C", "D", "E", "F", "G", "A", "B"];
       const octaves = [4, 5];
-      const notes = [];
-      for (let o of octaves) {
-        for (let n of scale) {
-          notes.push(`${n}${o}`);
-        }
-      }
-      return notes;
+      return octaves.flatMap(o => scale.map(n => `${n}${o}`));
     };
 
     const durations = ["4n", "8n", "16n", "8t", "4t", "4n.", "16t"];
 
     const getDurationMs = (notation) => {
       const quarter = 500;
-      switch (notation) {
-        case "4n": return quarter;
-        case "4t": return quarter * 2 / 3;
-        case "4n.": return quarter * 1.5;
-        case "8n": return quarter / 2;
-        case "8t": return quarter / 3;
-        case "16n": return quarter / 4;
-        case "16t": return quarter / 6;
-        default: return quarter;
-      }
+      return {
+        "4n": quarter,
+        "4t": quarter * 2 / 3,
+        "4n.": quarter * 1.5,
+        "8n": quarter / 2,
+        "8t": quarter / 3,
+        "16n": quarter / 4,
+        "16t": quarter / 6
+      }[notation] || quarter;
     };
 
     const synth1 = new Tone.Synth().toDestination();
@@ -79,6 +72,7 @@
         "E1": "hihat.wav"
       },
       baseUrl: "https://tonejs.github.io/audio/drum-samples/CR78/",
+      onload: () => console.log("Drum samples loaded")
     }).toDestination();
 
     const notes1 = getCMajorNotes();
@@ -88,8 +82,8 @@
       return `${name}${oct}`;
     });
 
-    let track1 = [];
-    let track2 = [];
+    let line1 = [];
+    let line2 = [];
     let drums = [];
     let running = false;
 
@@ -115,15 +109,16 @@
         synth2.triggerAttackRelease(n2, d2);
         if (drumNote) drumSampler.triggerAttackRelease(drumNote, drumDur);
 
-        const j1 = jianpuMap[n1[0]];
-        const j2 = jianpuMap[n2[0]];
-        const dr = drumNames[drumNote];
+        const j1 = jianpuMap[n1[0]] || "-";
+        const j2 = jianpuMap[n2[0]] || "-";
+        const dr = drumNames[drumNote] || " ";
 
-        track1.push(pad(j1));
-        track2.push(pad(j2));
+        line1.push(pad(j1));
+        line2.push(pad(j2));
         drums.push(pad(dr));
 
-        noteDisplay.textContent = `Track 1\n${track1.join('')}\nTrack 2\n${track2.join('')}\nDrums\n${drums.join('')}`;
+        noteDisplay.textContent =
+          `${line1.join('')}\n${line2.join('')}\n\nDrums\n${drums.join('')}`;
 
         await new Promise(r => setTimeout(r, Math.min(getDurationMs(d1), getDurationMs(d2), getDurationMs(drumDur))));
       }
