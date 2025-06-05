@@ -3,70 +3,49 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Hardcore Metal Generator Fixed</title>
+<title>Continuous Hardcore Punk Generator Fixed</title>
 <style>
-  body {
-    font-family: monospace;
-    background: #111;
-    color: #eee;
-    padding: 20px;
-    text-align: center;
-  }
+  body { background: #111; color: #eee; font-family: monospace; padding: 20px; }
   #noteDisplay {
-    width: 95%;
-    height: 300px;
-    margin: 10px auto;
-    background: #222;
-    border: 1px solid #444;
-    padding: 10px;
-    overflow-y: scroll;
-    white-space: pre-wrap;
-    text-align: left;
-    font-size: 14px;
+    width: 95%; height: 300px; background: #222; border: 1px solid #444; padding: 10px;
+    overflow-y: scroll; white-space: pre-wrap; text-align: left; font-size: 14px;
   }
   button {
-    padding: 10px 20px;
-    margin: 10px;
-    font-size: 16px;
-    cursor: pointer;
+    padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer;
   }
 </style>
 </head>
 <body>
 
-<h1>Hardcore Metal Music Generator — FIXED</h1>
+<h1>Hardcore Punk Generator - Continuous Loop & Drums Fixed</h1>
 <button id="startBtn">▶️ Start</button>
 <button id="stopBtn">⏸️ Stop</button>
 <div id="noteDisplay"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/tone@14.8.39/build/Tone.min.js"></script>
 <script>
-  // Setup Transport bpm and time signature
   Tone.Transport.bpm.value = 220;
   Tone.Transport.timeSignature = [4, 4];
 
-  // Notes and scales
+  // Notes
   const minorPentatonicRoots = ["A", "C", "D", "E", "G"];
   const noteToMidi = { A: 57, C: 60, D: 62, E: 64, G: 67 };
-
   function midiToNoteName(midi) {
     const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const note = notes[midi % 12];
     const octave = Math.floor(midi / 12) - 1;
     return note + octave;
   }
-
   function powerChord(root) {
     const rootMidi = noteToMidi[root];
     const fifthMidi = rootMidi + 7;
     return [midiToNoteName(rootMidi), midiToNoteName(fifthMidi)];
   }
 
-  // Synths setup
+  // Synths
   const guitar = new Tone.PolySynth(Tone.MonoSynth, {
     oscillator: { type: "square" },
-    envelope: { attack: 0.005, decay: 0.1, sustain: 0.2, release: 0.1 },
-    filterEnvelope: { attack: 0.001, decay: 0.05, sustain: 0.3, release: 0.05 }
+    envelope: { attack: 0.005, decay: 0.1, sustain: 0.2, release: 0.1 }
   }).chain(new Tone.Distortion(0.8), new Tone.Gain(0.7), Tone.Destination);
 
   const bass = new Tone.MonoSynth({
@@ -76,52 +55,52 @@
     volume: -8
   }).toDestination();
 
-  // Drums: kick, snare, hi-hat
+  // Drums setup
   const kick = new Tone.MembraneSynth({
     pitchDecay: 0.01,
     octaves: 10,
-    envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.05 },
-    volume: 5
+    envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.05 },
+    volume: 10
   }).toDestination();
 
   const snare = new Tone.NoiseSynth({
     noise: { type: "white" },
-    envelope: { attack: 0.001, decay: 0.1, sustain: 0 },
-    volume: 0
+    envelope: { attack: 0.001, decay: 0.12, sustain: 0 },
+    volume: 5
   }).toDestination();
 
   const hiHatClosed = new Tone.MetalSynth({
     frequency: 8000,
-    envelope: { attack: 0.001, decay: 0.05, release: 0.02 },
+    envelope: { attack: 0.001, decay: 0.03, release: 0.01 },
     harmonicity: 5.1,
     modulationIndex: 32,
     resonance: 4000,
     octaves: 1.5,
-    volume: -6
+    volume: -10
   }).toDestination();
 
   // Constants
+  const measures = 4;
   const beatsPerMeasure = 4;
-  const measuresPerPhrase = 4;
-  const sixteenthNotesPerPhrase = beatsPerMeasure * measuresPerPhrase * 4; // 64 sixteenths
+  const sixteenthNotesPerMeasure = 16;
+  const totalSixteenths = measures * sixteenthNotesPerMeasure; // 64 steps
 
-  // Generate drums pattern for one 4-measure phrase (64 sixteenth notes)
+  // Generate drum pattern array
   function generateDrums() {
     const pattern = [];
-    for (let i = 0; i < sixteenthNotesPerPhrase; i++) {
-      const kickHit = (i % 2 === 0); // kick on even 16ths, fast double kick
-      const snareHit = (i === 15 || i === 47); // snare on beats 2 and 4 (counting from 0)
-      const hiHatHit = true; // constant fast hi-hat
-
+    for (let i = 0; i < totalSixteenths; i++) {
+      const kickHit = (i % 4 === 0 || i % 4 === 2); // Kick on 1 & 3 sixteenth beats of each beat for double kicks
+      const snareHit = (i % 16 === 4 || i % 16 === 12); // Snare on beats 2 and 4
+      const hiHatHit = true; // constant hi-hat
       pattern.push({ kick: kickHit, snare: snareHit, hiHat: hiHatHit });
     }
     return pattern;
   }
 
-  // Guitar phrase: power chords on quarter notes
+  // Guitar phrase: chord per quarter note (one chord per beat)
   function generateGuitarPhrase() {
     const phrase = [];
-    for (let i = 0; i < beatsPerMeasure * measuresPerPhrase; i++) {
+    for (let i = 0; i < beatsPerMeasure * measures; i++) {
       if (Math.random() < 0.9) {
         const root = minorPentatonicRoots[Math.floor(Math.random() * minorPentatonicRoots.length)];
         phrase.push(root);
@@ -158,8 +137,9 @@
 
   function appendPhraseToDisplay(guitarPhrase, bassPhrase, drumsPattern) {
     const measureLength = beatsPerMeasure;
-    const phraseMeasures = measuresPerPhrase;
+    const phraseMeasures = measures;
 
+    // Guitar & Bass display - per beat
     for (let i = 0; i < guitarPhrase.length; i++) {
       if (i > 0 && i % measureLength === 0) {
         displayLines.guitar += " | ";
@@ -169,8 +149,9 @@
       displayLines.bass += bassPhrase[i] ? bassPhrase[i][0] : "-";
     }
 
+    // Drums display - per 16th note
     for (let i = 0; i < drumsPattern.length; i++) {
-      if (i > 0 && i % (measureLength * 4) === 0) {
+      if (i > 0 && i % sixteenthNotesPerMeasure === 0) {
         displayLines.drums += " | ";
       }
       const step = drumsPattern[i];
@@ -189,31 +170,34 @@
     noteDisplay.scrollTop = noteDisplay.scrollHeight;
   }
 
-  // Play functions
-  function playDrums(pattern, startTime) {
-    for (let i = 0; i < pattern.length; i++) {
-      const time = startTime + i * Tone.Time("16n").toSeconds();
-      const step = pattern[i];
-      if (step.kick) kick.triggerAttackRelease("C2", "16n", time);
-      if (step.snare) snare.triggerAttackRelease("16n", time + 0.01);
-      if (step.hiHat) hiHatClosed.triggerAttackRelease("32n", time + 0.005);
-    }
+  // Play functions for single step
+
+  // stepIndex is from 0 to totalSixteenths-1
+  function playDrumStep(stepIndex, pattern, time) {
+    const step = pattern[stepIndex];
+    if (!step) return;
+    if (step.kick) kick.triggerAttackRelease("C2", "16n", time);
+    if (step.snare) snare.triggerAttackRelease("16n", time + 0.001);
+    if (step.hiHat) hiHatClosed.triggerAttackRelease("32n", time + 0.001);
   }
 
-  function playGuitar(phrase, startTime) {
-    for (let i = 0; i < phrase.length; i++) {
-      const time = startTime + i * Tone.Time("4n").toSeconds();
-      const root = phrase[i];
+  // Guitar plays once per quarter note (every 4 sixteenths)
+  // Calculate which chord to play on current step
+  function playGuitarStep(stepIndex, phrase, time) {
+    if (stepIndex % 4 === 0) {
+      const chordIndex = Math.floor(stepIndex / 4);
+      const root = phrase[chordIndex];
       if (root) {
         guitar.triggerAttackRelease(powerChord(root), "8n", time);
       }
     }
   }
 
-  function playBass(phrase, startTime) {
-    for (let i = 0; i < phrase.length; i++) {
-      const time = startTime + i * Tone.Time("4n").toSeconds();
-      const note = phrase[i];
+  // Bass plays same as guitar, once per quarter note
+  function playBassStep(stepIndex, phrase, time) {
+    if (stepIndex % 4 === 0) {
+      const noteIndex = Math.floor(stepIndex / 4);
+      const note = phrase[noteIndex];
       if (note) {
         bass.triggerAttackRelease(note, "8n", time);
       }
@@ -221,53 +205,51 @@
   }
 
   // State vars
-  let loopId = null;
-  let running = false;
+  let currentStep = 0;
+  let guitarPhrase, bassPhrase, drumsPattern;
+  let loop;
 
-  // Generate phrases once and re-use to loop infinitely
-  let currentGuitarPhrase, currentBassPhrase, currentDrumsPattern;
-
-  // Loop callback called every 4 measures
-  function loopCallback(time) {
-    playGuitar(currentGuitarPhrase, time);
-    playBass(currentBassPhrase, time);
-    playDrums(currentDrumsPattern, time);
-
-    appendPhraseToDisplay(currentGuitarPhrase, currentBassPhrase, currentDrumsPattern);
-  }
-
-  // Start and stop handlers
   async function startLoop() {
     await Tone.start();
-    if (running) return;
-    running = true;
+    if (loop) return;
 
+    currentStep = 0;
     displayLines = { guitar: "", bass: "", drums: "" };
     noteDisplay.textContent = "";
 
-    currentGuitarPhrase = generateGuitarPhrase();
-    currentBassPhrase = generateBassPhrase(currentGuitarPhrase);
-    currentDrumsPattern = generateDrums();
+    guitarPhrase = generateGuitarPhrase();
+    bassPhrase = generateBassPhrase(guitarPhrase);
+    drumsPattern = generateDrums();
 
-    // Schedule repeating loop every 4 measures
-    loopId = Tone.Transport.scheduleRepeat(loopCallback, "1m * 4");
+    appendPhraseToDisplay(guitarPhrase, bassPhrase, drumsPattern);
+
+    // Loop runs every 16th note, each time triggering one step of pattern
+    loop = new Tone.Loop((time) => {
+      playDrumStep(currentStep, drumsPattern, time);
+      playGuitarStep(currentStep, guitarPhrase, time);
+      playBassStep(currentStep, bassPhrase, time);
+
+      currentStep++;
+      if (currentStep >= totalSixteenths) currentStep = 0; // loop forever
+    }, "16n");
 
     Tone.Transport.start();
+    loop.start(0);
   }
 
   function stopLoop() {
-    if (!running) return;
-    running = false;
-    Tone.Transport.stop();
-    if (loopId !== null) {
-      Tone.Transport.clear(loopId);
-      loopId = null;
+    if (loop) {
+      loop.stop();
+      loop.cancel();
+      loop = null;
     }
+    Tone.Transport.stop();
+    displayLines = { guitar: "", bass: "", drums: "" };
+    noteDisplay.textContent = "";
   }
 
   document.getElementById("startBtn").onclick = startLoop;
   document.getElementById("stopBtn").onclick = stopLoop;
-
 </script>
 
 </body>
