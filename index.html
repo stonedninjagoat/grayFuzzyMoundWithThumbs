@@ -76,22 +76,23 @@
     volume: -8
   }).toDestination();
 
-  // Drum samplers for track 1 (kick and snare)
+  // Drum samplers with Looperman samples (reliable)
   const drumsTrack1 = new Tone.Sampler({
     urls: {
-      "C1": "kick.wav",
-      "D1": "snare.wav"
+      "C1": "kick-909.wav",
+      "D1": "snare-909.wav"
     },
-    baseUrl: "https://tonejs.github.io/audio/drum-samples/CR78/"
+    baseUrl: "https://tonejs.github.io/audio/drum-samples/looperman/",
+    volume: 0
   }).toDestination();
 
-  // Drum samplers for track 2 (open and closed hi-hat)
   const drumsTrack2 = new Tone.Sampler({
     urls: {
-      "E1": "openhat.wav",
-      "F1": "closedhat.wav"
+      "E1": "openhat-909.wav",
+      "F1": "closedhat-909.wav"
     },
-    baseUrl: "https://tonejs.github.io/audio/drum-samples/CR78/"
+    baseUrl: "https://tonejs.github.io/audio/drum-samples/looperman/",
+    volume: 0
   }).toDestination();
 
   // === Hardcore punk rhythmic drum pattern generator ===
@@ -237,8 +238,6 @@
   // === Scheduling with Tone.Transport ===
   const phraseDuration = Tone.Time("1m").toSeconds() * measuresPerPhrase;
 
-  let phraseCount = 0;
-
   function schedulePhrase(time) {
     const guitarPhrase = generateGuitarPhrase();
     const bassPhrase = generateBassPhrase(guitarPhrase);
@@ -249,14 +248,11 @@
     playGuitar(guitarPhrase, time);
     playBass(bassPhrase, time);
     playDrums(drumsPattern, time);
-
-    phraseCount++;
   }
 
   document.getElementById("startBtn").onclick = async () => {
     if (Tone.Transport.state !== "started") {
       await Tone.start();
-      phraseCount = 0;
       displayLines = { guitar: "", bass: "", drums1: "", drums2: "" };
       noteDisplay.textContent = "";
 
