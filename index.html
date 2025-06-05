@@ -2,25 +2,22 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Major7 Guitar Dyads + Bass + Drums + Jianpu Output</title>
+<title>Major7 Guitar Dyads + Bass + Drums + Jianpu Output (Appending)</title>
 <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.min.js"></script>
 <style>
   body { background:#121212; color:#eee; font-family: monospace; padding:1rem; }
-  #output { white-space: pre-wrap; font-size:1.2rem; margin-top:1rem; }
+  #output { white-space: pre-wrap; font-size:1.1rem; max-height: 400px; overflow-y: auto; border: 1px solid #444; padding: 0.8rem; }
   button { font-size:1.2rem; padding:0.6rem 1.4rem; margin-top:1rem; border:none; border-radius:5px; cursor:pointer; background:#333; color:#eee; }
   button:hover { background:#555; }
 </style>
 </head>
 <body>
 
-<h2>Major7 Guitar Dyads + Bass + Drums + Jianpu Output</h2>
+<h2>Major7 Guitar Dyads + Bass + Drums + Jianpu Output (Appending)</h2>
 <button id="start">Start Jam</button>
 
 <pre id="output">
-Guitar Jianpu: -  
-Bass Jianpu: -  
-Drums Track1 (HiHat): -  
-Drums Track2 (Kick/Snare): -
+=== Jam Log ===
 </pre>
 
 <script>
@@ -28,28 +25,25 @@ const JianpuMap = { 'C': '1', 'D': '2', 'E': '3', 'F': '4', 'G': '5', 'A': '6', 
 const major7Intervals = [0,4,7,11];
 const roots = ['C','D','E','F','G','A','B'];
 
-// Drum patterns: 8 eighth notes per measure
 const drumPatterns = {
   hihat: ['open', 'close', 'close', 'open', 'close', 'close', 'close', 'open'],
   kick:  [1,0,0,0,1,0,0,0],
   snare: [0,0,1,0,0,0,1,0]
 };
 
-// Convert root + interval to note letter (simplified, no sharps)
 function noteFromRoot(root, interval) {
   const midiMap = { C: 60, D: 62, E: 64, F: 65, G: 67, A: 69, B: 71 };
   let midi = midiMap[root] + interval;
   const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
   let note = noteNames[midi % 12];
   if(note.includes('#')) {
-    // Convert sharps to flats (down one semitone)
+    // convert sharp to flat (simplified)
     let altMidi = midi - 1;
     note = noteNames[altMidi % 12];
   }
   return note[0];
 }
 
-// Generate all unique pairs of notes from Major7 chord
 function generateMaj7Pairs(root) {
   const chordNotes = major7Intervals.map(i => noteFromRoot(root, i));
   let pairs = [];
@@ -58,12 +52,10 @@ function generateMaj7Pairs(root) {
       pairs.push([chordNotes[i], chordNotes[j]]);
     }
   }
-  // Shuffle pairs randomly each time called
   pairs.sort(() => Math.random() - 0.5);
   return pairs;
 }
 
-// Jianpu output for pairs
 function pairsToJianpu(pairs) {
   return pairs.map(pair => pair.map(note => JianpuMap[note]||'?').join(' ')).join('\n');
 }
@@ -108,7 +100,6 @@ function choosePattern() {
   randomizeSectionRoots();
 }
 
-// Tone.js Synth setup
 const guitarSynth = new Tone.PolySynth(Tone.Synth, {
   oscillator: { type: 'square' },
   envelope: { attack: 0.01, decay: 0.1, sustain: 0.4, release: 0.1 }
@@ -144,22 +135,11 @@ const drumHiHat = new Tone.MetalSynth({
   volume: -15
 }).toDestination();
 
-// Play a dyad (two notes) for guitar, in octave 4
-function playGuitarDyad(notes) {
-  // Map note letters to MIDI note names with octave 4
-  const octave = 4;
-  const midiNotes = notes.map(n => n + octave);
-  guitarSynth.triggerAttackRelease(midiNotes, '8n');
-}
-
-// Play bass root note octave 2 or 3 (to sound lower)
 function playBassNote(root) {
   const octave = 2;
-  const midiNote = root + octave;
-  bassSynth.triggerAttackRelease(midiNote, '4n');
+  bassSynth.triggerAttackRelease(root + octave, '4n');
 }
 
-// Schedule drum pattern (8 eighth notes) on Tone.Transport position (0 to 7)
 function scheduleDrums(startMeasure) {
   for(let i=0; i<8; i++) {
     let time = `${startMeasure}m + ${i*0.5}n`;
@@ -192,12 +172,11 @@ function playMeasure(time) {
   // Play bass root at measure start
   playBassNote(root);
 
-  // Schedule guitar dyads every 2 eighth notes (quarter notes) inside measure
+  // Play guitar dyads spaced evenly through measure (4 dyads = quarter note each)
   for(let i=0; i<4; i++) {
-    let playTime = `+${i * 0.5}n`; // every 0.5 quarter notes = 8th notes
+    let playTime = `+${i * 0.5}n`;
     Tone.Transport.scheduleOnce(() => {
       const dyad = guitarPairs[currentDyadIndex % guitarPairs.length];
-      // Convert dyad note letters to note names with octave for synth
       const octave = 4;
       const notesToPlay = dyad.map(n => n + octave);
       guitarSynth.triggerAttackRelease(notesToPlay, '8n');
@@ -205,12 +184,15 @@ function playMeasure(time) {
     }, `${time} + ${i * 0.5}n`);
   }
 
-  // Schedule drums for this measure
   scheduleDrums(measureCount);
 
-  // Update Jianpu output immediately
-  document.getElementById('output').textContent = 
-`Guitar Jianpu:
+  // Append new Jianpu output (don't erase old)
+  const out = document.getElementById('output');
+  out.textContent += 
+`---
+Measure ${measureCount+1} | Section ${section} | Root: ${root}
+
+Guitar Jianpu:
 ${pairsToJianpu(guitarPairs)}
 
 Bass Jianpu:
@@ -220,17 +202,22 @@ Drums Track1 (HiHat):
 ${drumTrack1Jianpu()}
 
 Drums Track2 (Kick/Snare):
-${drumTrack2Jianpu()}`;
+${drumTrack2Jianpu()}
+
+`;
 
   measureCount++;
   currentSectionIndex = (currentSectionIndex + 1) % currentPattern.length;
+
+  // Auto scroll down the output box
+  out.scrollTop = out.scrollHeight;
 }
 
 document.getElementById('start').onclick = async () => {
   await Tone.start();
   measureCount = 0;
   choosePattern();
-  Tone.Transport.bpm.value = 220; // hardcore speed
+  Tone.Transport.bpm.value = 220;
   Tone.Transport.scheduleRepeat(playMeasure, '1m');
   Tone.Transport.start();
   document.getElementById('start').disabled = true;
