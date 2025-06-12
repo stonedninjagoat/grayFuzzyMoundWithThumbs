@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <title>CSV to MIDI Converter</title>
   <script src="https://cdn.jsdelivr.net/npm/jsmidgen@latest/dist/jsmidgen.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@magenta/music@1.22.1/es6/core.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@magenta/music@1.22.1/es6/midi_io.js"></script>
 </head>
 <body>
   <h2>CSV to MIDI Converter</h2>
@@ -16,11 +18,13 @@
   <button onclick="convertCSVtoMIDI()">Convert & Generate MIDI</button>
 
   <br><br>
-  <audio id="midiPlayer" controls></audio>
+  <button id="playButton" style="display:none;" onclick="playMIDI()">▶ Play MIDI</button>
   <br><br>
   <a id="downloadLink" style="display: none;" download="converted.mid">Download MIDI File</a>
 
   <script>
+    let midiBlob = null;
+
     function convertCSVtoMIDI() {
       const fileInput = document.getElementById('csvFile');
       const tempo = parseInt(document.getElementById('tempo').value) || 120;
@@ -45,30 +49,46 @@
         const track = new Midi.Track();
         file.addTrack(track);
 
-        // Convert BPM to microseconds per beat
-        const microsecondsPerBeat = Math.floor(60000000 / tempo);
-        track.setTempo(microsecondsPerBeat);
-
         const TICKS_PER_BEAT = 128;
         const durationTicks = TICKS_PER_BEAT / 2; // 1/8 note
+        const microsecondsPerBeat = Math.floor(60000000 / tempo);
+        track.setTempo(microsecondsPerBeat);
 
         for (let note of midiNumbers) {
           track.addNote(0, note, durationTicks);
         }
 
-        const midiData = file.toBytes();
-        const blob = new Blob([new Uint8Array(midiData.split('').map(c => c.charCodeAt(0)))], { type: 'audio/midi' });
-        const url = URL.createObjectURL(blob);
+        const midiString = file.toBytes();
+        const byteArray = new Uint8Array(midiString.length);
+        for (let i = 0; i < midiString.length; i++) {
+          byteArray[i] = midiString.charCodeAt(i);
+        }
 
-        const player = document.getElementById('midiPlayer');
-        player.src = url;
+        midiBlob = new Blob([byteArray], { type: 'audio/midi' });
+        const url = URL.createObjectURL(midiBlob);
 
+        // Set download link
         const downloadLink = document.getElementById('downloadLink');
         downloadLink.href = url;
         downloadLink.style.display = 'inline';
+
+        // Show play button
+        document.getElementById('playButton').style.display = 'inline';
       };
 
       reader.readAsText(fileInput.files[0]);
+    }
+
+    async function playMIDI() {
+      if (!midiBlob) return;
+
+      const arrayBuffer = await midiBlob.arrayBuffer();
+      const midi = new core.MIDIFile(arrayBuffer);
+      const noteSeq = mm.midiToSequenceProto(midi);
+
+      const player = new mm.SoundFontPlayer('https://storage.googleapis.com/magentadata/js/soundfonts/sgm_plus');
+      await player.initialize();
+      player.start(noteSeq);
     }
   </script>
 </body>
