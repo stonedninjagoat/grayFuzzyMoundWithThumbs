@@ -2,70 +2,89 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>CSV to MIDI Converter</title>
-  <script src="https://cdn.jsdelivr.net/npm/jsmidgen@latest/dist/jsmidgen.min.js"></script>
+  <title>CSV to MIDI (Tone.js)</title>
+  <script src="https://cdn.jsdelivr.net/npm/tone@next/build/Tone.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.27/build/Midi.js"></script>
 </head>
 <body>
-  <h2>CSV to MIDI Converter</h2>
+  <h2>CSV to MIDI Converter (Tone.js)</h2>
   <input type="file" id="csvFile" accept=".csv" />
+  <br><br>
+  <button onclick="playNotes()">Play MIDI</button>
   <button onclick="downloadMIDI()">Download MIDI</button>
 
   <script>
     let midiNotes = [];
 
-    document.getElementById('csvFile').addEventListener('change', function(event) {
+    document.getElementById('csvFile').addEventListener('change', async function(event) {
       const file = event.target.files[0];
       if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const contents = e.target.result;
-        parseCSV(contents);
-      };
-      reader.readAsText(file);
-    });
-
-    function parseCSV(csvData) {
-      const lines = csvData.trim().split(/\r?\n/);
+      const text = await file.text();
+      const lines = text.trim().split(/\r?\n/);
       midiNotes = [];
 
       for (let line of lines) {
-        const parts = line.split(','); // In case it's comma-separated
+        const parts = line.split(',');
         for (let part of parts) {
-          const note = parseInt(part.trim());
-          if (!isNaN(note)) {
-            midiNotes.push(note);
-          }
+          const num = parseInt(part.trim());
+          if (!isNaN(num)) midiNotes.push(num);
         }
       }
 
-      alert(`Parsed ${midiNotes.length} MIDI notes.`);
+      alert(`Loaded ${midiNotes.length} MIDI notes.`);
+    });
+
+    async function playNotes() {
+      if (midiNotes.length === 0) {
+        alert("Please load a CSV file first.");
+        return;
+      }
+
+      await Tone.start(); // Required for modern browsers
+
+      const synth = new Tone.Synth().toDestination();
+      let time = 0;
+      const duration = 0.4;
+
+      midiNotes.forEach((midi, index) => {
+        const freq = Tone.Frequency(midi, "midi");
+        Tone.Transport.scheduleOnce(time => {
+          synth.triggerAttackRelease(freq, duration, time);
+        }, `+${index * duration}`);
+      });
+
+      Tone.Transport.start();
     }
 
     function downloadMIDI() {
       if (midiNotes.length === 0) {
-        alert("No MIDI notes loaded. Please upload a CSV first.");
+        alert("Please load a CSV file first.");
         return;
       }
 
-      const file = new Midi.File();
-      const track = new Midi.Track();
-      file.addTrack(track);
+      const midi = new Midi();
+      const track = midi.addTrack();
 
-      const duration = 64; // Fixed duration for each note
+      let time = 0;
+      const duration = 0.5; // in seconds
+
       for (let note of midiNotes) {
-        track.addNote(0, note, duration);
+        track.addNote({
+          midi: note,
+          time: time,
+          duration: duration
+        });
+        time += duration;
       }
 
-      const midiData = file.toBytes();
-      const blob = new Blob([new Uint8Array(midiData.split('').map(c => c.charCodeAt(0)))], {
-        type: 'audio/midi'
-      });
-
+      const bytes = midi.toArray();
+      const blob = new Blob([bytes], { type: "audio/midi" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+
+      const a = document.createElement("a");
       a.href = url;
-      a.download = 'output.mid';
+      a.download = "converted.mid";
       a.click();
       URL.revokeObjectURL(url);
     }
