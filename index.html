@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <title>CSV to MIDI Converter</title>
-  <script src="https://cdn.jsdelivr.net/npm/jsmidgen@1.1.1/midigen.js"></script>
+  <!-- Use jsmidgen from unpkg with proper UMD export -->
+  <script src="https://unpkg.com/jsmidgen@0.2.6/lib/jsmidgen.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@magenta/music@1.22.1/es6/core.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@magenta/music@1.22.1/es6/midi_io.js"></script>
 </head>
@@ -37,7 +38,7 @@
       const reader = new FileReader();
       reader.onload = function (e) {
         const csv = e.target.result;
-        const lines = csv.split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
+        const lines = csv.split(/\r?\n/).map(line => line.trim()).filter(line => line !== '');
         const midiNumbers = lines.map(n => parseInt(n)).filter(n => !isNaN(n));
 
         if (midiNumbers.length === 0) {
@@ -58,19 +59,17 @@
           track.addNote(0, note, durationTicks);
         }
 
-        const midiString = file.toBytes();
-        const byteArray = new Uint8Array(midiString.length);
-        for (let i = 0; i < midiString.length; i++) {
-          byteArray[i] = midiString.charCodeAt(i);
+        const midiData = file.toBytes();
+        const byteArray = new Uint8Array(midiData.length);
+        for (let i = 0; i < midiData.length; i++) {
+          byteArray[i] = midiData.charCodeAt(i);
         }
 
         midiBlob = new Blob([byteArray], { type: 'audio/midi' });
         const url = URL.createObjectURL(midiBlob);
 
-        const downloadLink = document.getElementById('downloadLink');
-        downloadLink.href = url;
-        downloadLink.style.display = 'inline';
-
+        document.getElementById('downloadLink').href = url;
+        document.getElementById('downloadLink').style.display = 'inline';
         document.getElementById('playButton').style.display = 'inline';
       };
 
@@ -79,7 +78,6 @@
 
     async function playMIDI() {
       if (!midiBlob) return;
-
       const arrayBuffer = await midiBlob.arrayBuffer();
       const midi = new core.MIDIFile(arrayBuffer);
       const noteSeq = mm.midiToSequenceProto(midi);
