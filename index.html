@@ -1,24 +1,40 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>CSV to MIDI (1/8 Notes)</title>
   <script src="https://cdn.jsdelivr.net/npm/tone@next/build/Tone.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.27/build/Midi.js"></script>
+  <style>
+    #status {
+      margin-top: 1em;
+      font-family: sans-serif;
+      color: #333;
+    }
+  </style>
 </head>
 <body>
   <h2>CSV to MIDI Converter (1/8 Notes)</h2>
   <input type="file" id="csvFile" accept=".csv" />
-  <br><br>
+  <br /><br />
   <button onclick="playNotes()">Play MIDI</button>
   <button onclick="downloadMIDI()">Download MIDI</button>
+  <div id="status"></div>
 
   <script>
     let midiNotes = [];
+    let importedFileName = "";
+
+    const statusEl = document.getElementById("status");
 
     document.getElementById('csvFile').addEventListener('change', async function(event) {
       const file = event.target.files[0];
-      if (!file) return;
+      if (!file) {
+        statusEl.textContent = "No file selected.";
+        return;
+      }
+
+      importedFileName = file.name.replace(/\.csv$/i, "");
 
       const text = await file.text();
       const lines = text.trim().split(/\r?\n/);
@@ -32,21 +48,21 @@
         }
       }
 
-      alert(`Loaded ${midiNotes.length} MIDI notes.`);
+      statusEl.textContent = `Loaded ${midiNotes.length} MIDI notes from "${file.name}".`;
     });
 
     async function playNotes() {
       if (midiNotes.length === 0) {
-        alert("Please load a CSV file first.");
+        statusEl.textContent = "Please load a CSV file first before playing.";
         return;
       }
 
-      await Tone.start(); // Required for browsers
+      await Tone.start();
 
       const synth = new Tone.Synth().toDestination();
-      const duration = "8n"; // eighth note
-      let time = 0;
+      const duration = "8n";
 
+      Tone.Transport.cancel();
       midiNotes.forEach((midi, index) => {
         const freq = Tone.Frequency(midi, "midi");
         Tone.Transport.scheduleOnce(time => {
@@ -55,11 +71,12 @@
       });
 
       Tone.Transport.start();
+      statusEl.textContent = `Playing ${midiNotes.length} notes as 1/8 notes.`;
     }
 
     function downloadMIDI() {
       if (midiNotes.length === 0) {
-        alert("Please load a CSV file first.");
+        statusEl.textContent = "Please load a CSV file first before downloading.";
         return;
       }
 
@@ -84,9 +101,11 @@
 
       const a = document.createElement("a");
       a.href = url;
-      a.download = "converted_1-8_notes.mid";
+      a.download = `${importedFileName} midi gen.mid`;
       a.click();
       URL.revokeObjectURL(url);
+
+      statusEl.textContent = `MIDI file generated and downloaded: "${importedFileName} midiConvert.mid"`;
     }
   </script>
 </body>
