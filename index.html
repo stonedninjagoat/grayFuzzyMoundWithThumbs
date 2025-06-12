@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>CSV to MIDI Converter</title>
-  <script src="https://cdn.jsdelivr.net/npm/jsmidgen@latest/dist/jsmidgen.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsmidgen@1.1.1/midigen.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@magenta/music@1.22.1/es6/core.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@magenta/music@1.22.1/es6/midi_io.js"></script>
 </head>
@@ -67,12 +67,10 @@
         midiBlob = new Blob([byteArray], { type: 'audio/midi' });
         const url = URL.createObjectURL(midiBlob);
 
-        // Set download link
         const downloadLink = document.getElementById('downloadLink');
         downloadLink.href = url;
         downloadLink.style.display = 'inline';
 
-        // Show play button
         document.getElementById('playButton').style.display = 'inline';
       };
 
